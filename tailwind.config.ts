@@ -20,37 +20,45 @@ export default {
 		extend: {
 			colors: {
 				border: 'hsl(var(--border))',
-				input: 'hsl(var(--input))',
-				ring: 'hsl(var(--ring))',
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
-					foreground: 'hsl(var(--primary-foreground))'
+					foreground: 'hsl(var(--primary-foreground))',
+					light: 'hsl(var(--primary-light))'
 				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
 					foreground: 'hsl(var(--secondary-foreground))'
 				},
-				destructive: {
-					DEFAULT: 'hsl(var(--destructive))',
-					foreground: 'hsl(var(--destructive-foreground))'
-				},
-				muted: {
-					DEFAULT: 'hsl(var(--muted))',
-					foreground: 'hsl(var(--muted-foreground))'
-				},
 				accent: {
 					DEFAULT: 'hsl(var(--accent))',
 					foreground: 'hsl(var(--accent-foreground))'
 				},
-				popover: {
-					DEFAULT: 'hsl(var(--popover))',
-					foreground: 'hsl(var(--popover-foreground))'
-				},
 				card: {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
+				},
+				header: {
+					DEFAULT: 'hsl(var(--header))',
+					foreground: 'hsl(var(--header-foreground))'
+				},
+				headline: 'hsl(var(--headline))',
+				subheadline: 'hsl(var(--subheadline))',
+				'body-text': 'hsl(var(--body-text))',
+				'meta-text': 'hsl(var(--meta-text))',
+				separator: 'hsl(var(--separator))',
+				hover: 'hsl(var(--hover))',
+				active: 'hsl(var(--active))',
+				breaking: {
+					DEFAULT: 'hsl(var(--breaking))',
+					foreground: 'hsl(var(--breaking-foreground))'
+				},
+				category: {
+					health: 'hsl(var(--category-health))',
+					nature: 'hsl(var(--category-nature))',
+					politics: 'hsl(var(--category-politics))',
+					world: 'hsl(var(--category-world))'
 				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
@@ -84,13 +92,18 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'marquee': {
+					'0%': { transform: 'translateX(100%)' },
+					'100%': { transform: 'translateX(-100%)' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'marquee': 'marquee 30s linear infinite'
 			}
 		}
 	},
-	plugins: [require("tailwindcss-animate")],
+	plugins: [require("tailwindcss-animate"), require("@tailwindcss/line-clamp")],
 } satisfies Config;
