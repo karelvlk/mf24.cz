@@ -125,6 +125,58 @@ export const fillerArticles: NewsArticle[] = [
   }
 ];
 
+// Empty/meaningless filler content for slow news days
+export const emptyFillerArticles: NewsArticle[] = [
+  {
+    id: 'e1',
+    title: 'Dnes se vlastně nic nestalo',
+    perex: 'Dnešní den proběhl bez větších událostí. Úřady hlásí běžný provoz, doprava bez komplikací, počasí bez extrémů.',
+    category: 'ceska-politika',
+    published: '16:00',
+    author: 'Redakce',
+  },
+  {
+    id: 'e2',
+    title: 'Situace zůstává beze změn',
+    perex: 'Ministerstvo potvrdilo, že současný stav se nijak nezměnil oproti včerejšku. Žádné nové rozvojové plány nejsou v současnosti připravovány.',
+    category: 'ceska-politika',
+    published: '15:30',
+    author: 'Redakce',
+  },
+  {
+    id: 'e3',
+    title: 'Běžný den na úřadech',
+    perex: 'Městské úřady hlásí standardní provoz. Žádné mimořádné události se nekonaly, fronty běžné délky.',
+    category: 'ceska-politika',
+    published: '14:45',
+    author: 'Redakce',
+  },
+  {
+    id: 'e4',
+    title: 'Poklidné ráno v českých městech',
+    perex: 'Ranní hodiny proběhly v naprostém klidu. Doprava plynulá, žádné mimořádné události nebyly zaznamenány.',
+    category: 'ceska-politika',
+    published: '11:20',
+    author: 'Redakce',
+  },
+  {
+    id: 'e5',
+    title: 'Žádné novinky z parlamentu',
+    perex: 'Poslanci dnes neprojednávali žádné zásadní body. Běžný provoz bez mimořádných rozhodnutí.',
+    category: 'ceska-politika',
+    published: '13:10',
+    author: 'Redakce',
+  },
+  {
+    id: 'e6',
+    title: 'Klidný víkend bez komplikací',
+    perex: 'Víkendové dny proběhly bez větších problémů. Policie nezaznamenala žádné mimořádné události.',
+    category: 'ceska-politika', 
+    published: '12:00',
+    author: 'Redakce',
+  }
+];
+
 export function getNewsForCategory(category: string): NewsArticle[] {
   return newsData[category] || [];
 }
@@ -138,4 +190,8 @@ export function getFillerArticles(excludeCategory?: string): NewsArticle[] {
   return fillerArticles.filter(article => 
     !excludeCategory || article.category !== excludeCategory
   );
+}
+
+export function getEmptyFillerArticles(): NewsArticle[] {
+  return emptyFillerArticles;
 }
