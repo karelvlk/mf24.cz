@@ -17,11 +17,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/zdravi" element={<CategoryPage />} />
-          <Route path="/priroda" element={<CategoryPage />} />
-          <Route path="/ceska-politika" element={<CategoryPage />} />
-          <Route path="/zahranicni-politika" element={<CategoryPage />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="/:category" element={<CategoryPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

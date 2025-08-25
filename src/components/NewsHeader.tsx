@@ -1,10 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
 
 const categories = [
+  { id: 'ceska-politika', label: 'Z domova', path: '/ceska-politika' },
+  { id: 'zahranicni-politika', label: 'Ze světa', path: '/zahranicni-politika' },
   { id: 'zdravi', label: 'Zdraví', path: '/zdravi' },
   { id: 'priroda', label: 'Příroda', path: '/priroda' },
-  { id: 'ceska-politika', label: 'Česká politika', path: '/ceska-politika' },
-  { id: 'zahranicni-politika', label: 'Zahraniční politika', path: '/zahranicni-politika' }
 ];
 
 export default function NewsHeader() {
@@ -24,7 +24,7 @@ export default function NewsHeader() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="text-2xl font-bold">
-              ČeskéZprávy.cz
+              MF24.cz
             </Link>
             <div className="text-sm text-header-foreground/80">
               {currentTime}
@@ -37,11 +37,11 @@ export default function NewsHeader() {
       <nav className="border-b border-separator">
         <div className="container mx-auto px-4">
           <div className="flex space-x-8">
-            <Link 
-              to="/" 
+            <Link
+              to="/"
               className={`py-3 text-sm font-medium border-b-2 transition-colors ${
-                location.pathname === '/' 
-                  ? 'border-secondary text-secondary' 
+                location.pathname === '/'
+                  ? 'border-secondary text-secondary'
                   : 'border-transparent hover:text-secondary'
               }`}
             >

@@ -15,8 +15,8 @@ const categoryColors = {
 const categoryLabels = {
   'zdravi': 'ZDRAVÍ',
   'priroda': 'PŘÍRODA',
-  'ceska-politika': 'ČESKÁ POLITIKA',
-  'zahranicni-politika': 'ZAHRANIČNÍ POLITIKA'
+  'ceska-politika': 'Z DOMOVA',
+  'zahranicni-politika': 'ZE SVĚTA'
 };
 
 export default function NewsCard({ article, variant = 'secondary' }: NewsCardProps) {

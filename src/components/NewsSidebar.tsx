@@ -68,34 +68,6 @@ export default function NewsSidebar({ excludeCategory }: NewsSidebarProps) {
           </div>
         </div>
       </div>
-
-      {/* Advertisement 3 */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
-        <div className="text-gray-400 text-xs mb-2 uppercase tracking-wider">
-          REKLAMA
-        </div>
-        <div className="bg-gradient-to-br from-orange-500 to-red-600 text-white rounded p-4">
-          <h3 className="font-bold text-lg mb-2">Letní akce</h3>
-          <p className="text-sm mb-3">Dovolená snů jen za 9,999 Kč</p>
-          <button className="bg-white text-orange-600 px-4 py-2 rounded font-medium text-sm">
-            Rezervovat
-          </button>
-        </div>
-      </div>
-
-      {/* Large banner ad */}
-      <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-        <div className="text-gray-500 text-sm mb-2">
-          REKLAMA
-        </div>
-        <div className="text-xs text-gray-400">
-          300x600px
-        </div>
-        <div className="mt-4 bg-gradient-to-r from-purple-400 to-pink-400 text-white rounded p-6">
-          <h4 className="font-bold mb-2">Velká reklama</h4>
-          <p className="text-sm">Místo pro vaši reklamu</p>
-        </div>
-      </div>
     </aside>
   );
 }
