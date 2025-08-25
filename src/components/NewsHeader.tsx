@@ -19,20 +19,6 @@ export default function NewsHeader() {
 
   return (
     <header className="bg-header text-header-foreground">
-      {/* Breaking news ticker */}
-      <div className="bg-breaking text-breaking-foreground">
-        <div className="container mx-auto px-4 py-1">
-          <div className="flex items-center space-x-4">
-            <span className="text-xs font-bold uppercase tracking-wider">BREAKING</span>
-            <div className="overflow-hidden">
-              <div className="animate-marquee whitespace-nowrap text-sm">
-                EU schvaluje nové sankce • Rekordní úhyn ryb v řece Moravě vyvolává obavy ekologů
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Main header */}
       <div className="border-b border-separator">
         <div className="container mx-auto px-4 py-4">

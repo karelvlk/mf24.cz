@@ -6,7 +6,7 @@ import NewsSidebar from "@/components/NewsSidebar";
 const Index = () => {
   // Get main articles from each category
   const mainArticles = [
-    newsData['zahranicni-politika'][0], // Breaking news first
+    newsData['zahranicni-politika'][0],
     newsData['ceska-politika'][0],
     newsData['zdravi'][0],
     newsData['priroda'][0]
@@ -22,14 +22,13 @@ const Index = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main content */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Breaking news section */}
-            <section>
-              <div className="flex items-center space-x-2 mb-4">
-                <span className="breaking-badge">BREAKING</span>
-                <h2 className="headline-secondary text-primary">NEJNOVĚJŠÍ ZPRÁVY</h2>
-              </div>
-              <NewsCard article={mainArticles[0]} variant="main" />
-            </section>
+          {/* Main story section */}
+          <section>
+            <h2 className="headline-secondary mb-6 text-primary border-b border-separator pb-2">
+              HLAVNÍ ZPRÁVA DNE
+            </h2>
+            <NewsCard article={mainArticles[0]} variant="main" />
+          </section>
 
             {/* Top stories grid */}
             <section>

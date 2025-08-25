@@ -22,34 +22,20 @@ const categoryLabels = {
 export default function NewsCard({ article, variant = 'secondary' }: NewsCardProps) {
   if (variant === 'main') {
     return (
-      <article className="bg-card rounded-lg overflow-hidden">
-        {article.image && (
-          <div className="aspect-video bg-gray-200 relative">
-            <img 
-              src={article.image} 
-              alt={article.title}
-              className="w-full h-full object-cover"
-            />
-            {article.isBreaking && (
-              <div className="absolute top-3 left-3">
-                <span className="breaking-badge">BREAKING</span>
-              </div>
-            )}
-            <div className="absolute bottom-3 left-3">
-              <span className={`category-badge text-white ${categoryColors[article.category]}`}>
-                {categoryLabels[article.category]}
-              </span>
-            </div>
-          </div>
-        )}
+      <article className="bg-card rounded-lg overflow-hidden border border-separator">
         <div className="p-6">
+          <div className="flex items-center space-x-2 mb-3">
+            <span className={`category-badge text-white ${categoryColors[article.category]}`}>
+              {categoryLabels[article.category]}
+            </span>
+          </div>
           <h1 className="headline-primary mb-4">
             {article.title}
           </h1>
           <p className="body-text text-lg leading-relaxed mb-4">
             {article.perex}
           </p>
-          <div className="flex items-center justify-between meta-text">
+          <div className="flex items-center justify-between meta-text border-t border-separator pt-4">
             <span>{article.author}</span>
             <span>{article.published}</span>
           </div>
@@ -62,7 +48,7 @@ export default function NewsCard({ article, variant = 'secondary' }: NewsCardPro
     return (
       <article className="flex space-x-3 py-3 border-b border-separator last:border-b-0">
         <div className="flex-1">
-          <h3 className="headline-tertiary mb-1 line-clamp-2">
+          <h3 className="headline-tertiary mb-1 line-clamp-2 hover:text-primary cursor-pointer transition-colors">
             {article.title}
           </h3>
           <div className="flex items-center space-x-2 meta-text">
@@ -78,20 +64,6 @@ export default function NewsCard({ article, variant = 'secondary' }: NewsCardPro
 
   return (
     <article className="bg-card border border-separator rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-      {article.image && (
-        <div className="aspect-video bg-gray-200 relative">
-          <img 
-            src={article.image} 
-            alt={article.title}
-            className="w-full h-full object-cover"
-          />
-          {article.isBreaking && (
-            <div className="absolute top-2 left-2">
-              <span className="breaking-badge text-xs">BREAKING</span>
-            </div>
-          )}
-        </div>
-      )}
       <div className="p-4">
         <div className="flex items-center space-x-2 mb-2">
           <span className={`category-badge text-white ${categoryColors[article.category]}`}>
@@ -99,13 +71,13 @@ export default function NewsCard({ article, variant = 'secondary' }: NewsCardPro
           </span>
           <span className="meta-text">{article.published}</span>
         </div>
-        <h2 className="headline-secondary mb-2 line-clamp-3">
+        <h2 className="headline-secondary mb-3 line-clamp-2 hover:text-primary cursor-pointer transition-colors">
           {article.title}
         </h2>
-        <p className="body-text text-sm line-clamp-3 mb-3">
+        <p className="body-text text-sm line-clamp-3 mb-3 leading-relaxed">
           {article.perex}
         </p>
-        <div className="meta-text">
+        <div className="meta-text border-t border-separator pt-3">
           {article.author}
         </div>
       </div>

@@ -5,8 +5,6 @@ export interface NewsArticle {
   category: 'zdravi' | 'priroda' | 'ceska-politika' | 'zahranicni-politika';
   published: string;
   author: string;
-  image?: string;
-  isBreaking?: boolean;
 }
 
 export const newsData: Record<string, NewsArticle[]> = {
@@ -18,7 +16,6 @@ export const newsData: Record<string, NewsArticle[]> = {
       category: 'zdravi',
       published: '15:30',
       author: 'MUDr. Jana Nováková',
-      image: '/placeholder.svg',
     },
     {
       id: '2', 
@@ -37,7 +34,6 @@ export const newsData: Record<string, NewsArticle[]> = {
       category: 'priroda',
       published: '16:20',
       author: 'Ing. Petra Zelená',
-      image: '/placeholder.svg',
     },
     {
       id: '4',
@@ -46,7 +42,6 @@ export const newsData: Record<string, NewsArticle[]> = {
       category: 'priroda',
       published: '13:15',
       author: 'RNDr. Martin Vodník',
-      isBreaking: true,
     }
   ],
   'ceska-politika': [
@@ -57,7 +52,6 @@ export const newsData: Record<string, NewsArticle[]> = {
       category: 'ceska-politika',
       published: '17:10',
       author: 'Mgr. Karel Politický',
-      image: '/placeholder.svg',
     },
     {
       id: '6',
@@ -76,8 +70,6 @@ export const newsData: Record<string, NewsArticle[]> = {
       category: 'zahranicni-politika',
       published: '18:45',
       author: 'Bc. Jiří Evropský',
-      image: '/placeholder.svg',
-      isBreaking: true,
     },
     {
       id: '8',
