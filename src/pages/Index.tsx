@@ -2,6 +2,7 @@ import { newsData, getEmptyFillerArticles } from "@/data/news";
 import NewsHeader from "@/components/NewsHeader";
 import NewsCard from "@/components/NewsCard";
 import NewsSidebar from "@/components/NewsSidebar";
+import ArticleRating from "@/components/ArticleRating";
 
 const Index = () => {
   const mainArticles = [
@@ -26,9 +27,13 @@ const Index = () => {
             <h2 className="headline-secondary mb-6 text-primary border-b border-separator pb-2 flex-shrink-0">
               ZPRÁVA DNE
             </h2>
-            <div className="flex-1">
+                        <div className="flex-1">
               <NewsCard article={mainArticles[0]} variant="main" />
             </div>
+            <ArticleRating
+              articleId={mainArticles[0]?.id}
+              onRatingChange={(rating) => console.log('Main article rated:', rating)}
+            />
           </section>
             <section>
               <h2 className="headline-secondary mb-6 text-primary border-b border-separator pb-2">

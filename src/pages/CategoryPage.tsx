@@ -3,6 +3,7 @@ import { getNewsForCategory, getMainArticle, getEmptyFillerArticles } from "@/da
 import NewsHeader from "@/components/NewsHeader";
 import NewsCard from "@/components/NewsCard";
 import NewsSidebar from "@/components/NewsSidebar";
+import ArticleRating from "@/components/ArticleRating";
 
 const categoryTitles = {
   'zdravi': 'Zdraví',
@@ -70,6 +71,10 @@ export default function CategoryPage() {
               <div className="flex-1">
                 <NewsCard article={mainArticle} variant="main" />
               </div>
+              <ArticleRating
+                articleId={mainArticle?.id}
+                onRatingChange={(rating) => console.log(`${category} main article rated:`, rating)}
+              />
             </section>
 
             {/* Secondary articles */}
