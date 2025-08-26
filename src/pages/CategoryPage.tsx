@@ -9,17 +9,19 @@ const categoryTitles = {
   'zdravi': 'Zdraví',
   'ceska-politika': 'Z domova',
   'priroda': 'Příroda',
-  'zahranicni-politika': 'Ze světa'
+  'zahranicni-politika': 'Ze světa',
+  'pohady': 'Pohádky'
 };
 
 const categoryAccentColors = {
   'zdravi': 'hsl(var(--category-health))',
   'priroda': 'hsl(var(--category-nature))',
   'ceska-politika': 'hsl(var(--category-politics))',
-  'zahranicni-politika': 'hsl(var(--category-world))'
+  'zahranicni-politika': 'hsl(var(--category-world))',
+  'pohady': 'hsl(var(--category-fairy-tales))'
 };
 
-const validCategories = ['zdravi', 'priroda', 'ceska-politika', 'zahranicni-politika'];
+const validCategories = ['zdravi', 'priroda', 'ceska-politika', 'zahranicni-politika', 'pohady'];
 
 export default function CategoryPage() {
   const { category } = useParams<{ category: string }>();
@@ -66,15 +68,15 @@ export default function CategoryPage() {
           <div className="lg:col-span-2 flex flex-col h-full max-h-screen gap-8">
             <section className="flex flex-col flex-1 min-h-0">
               <h2 className="headline-secondary mb-6 border-b border-separator pb-2 flex-shrink-0" style={{ color: accentColor }}>
-                HLAVNÍ ZPRÁVA RUBRIKY
+                {category === 'pohady' ? 'HLAVNÍ POHÁDKA' : 'HLAVNÍ ZPRÁVA RUBRIKY'}
               </h2>
               <div className="flex-1">
                 <NewsCard article={mainArticle} variant="main" />
               </div>
-              <ArticleRating
+              {category !== 'pohady' && <ArticleRating
                 articleId={mainArticle?.id}
                 onRatingChange={(rating) => console.log(`${category} main article rated:`, rating)}
-              />
+              />}
             </section>
 
             {/* Secondary articles */}

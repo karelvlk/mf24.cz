@@ -5,6 +5,7 @@ const categories = [
   { id: 'zahranicni-politika', label: 'Ze světa', path: '/zahranicni-politika' },
   { id: 'zdravi', label: 'Zdraví', path: '/zdravi' },
   { id: 'priroda', label: 'Příroda', path: '/priroda' },
+  { id: 'pohady', label: 'Pohádky', path: '/pohady' },
 ];
 
 export default function NewsHeader() {

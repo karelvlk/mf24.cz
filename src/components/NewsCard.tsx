@@ -9,14 +9,16 @@ const categoryColors = {
   'zdravi': 'bg-category-health',
   'priroda': 'bg-category-nature',
   'ceska-politika': 'bg-category-politics',
-  'zahranicni-politika': 'bg-category-world'
+  'zahranicni-politika': 'bg-category-world',
+  'pohady': 'bg-category-fairyTales'
 };
 
 const categoryLabels = {
   'zdravi': 'ZDRAVÍ',
   'priroda': 'PŘÍRODA',
   'ceska-politika': 'Z DOMOVA',
-  'zahranicni-politika': 'ZE SVĚTA'
+  'zahranicni-politika': 'ZE SVĚTA',
+  'pohady': 'POHÁDKY'
 };
 
 export default function NewsCard({ article, variant = 'secondary' }: NewsCardProps) {

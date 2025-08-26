@@ -2,7 +2,12 @@ export interface NewsArticle {
   id: string;
   title: string;
   perex: string;
-  category: "zdravi" | "priroda" | "ceska-politika" | "zahranicni-politika";
+  category:
+    | "zdravi"
+    | "priroda"
+    | "ceska-politika"
+    | "zahranicni-politika"
+    | "pohady";
   published: string;
   author: string;
 }
@@ -87,6 +92,17 @@ export const newsData: Record<string, NewsArticle[]> = {
       category: "zahranicni-politika",
       published: "11:20",
       author: "Mgr. Světlana Diplomática",
+    },
+  ],
+  pohady: [
+    {
+      id: "9",
+      title: "Malý princ",
+      perex:
+        "Potom si ještě řekl: Myslil jsem, že jsem bohatý, že mám jedinečnou květinu, a zatím mám jen obyčejnou růži. Ta růže a mé tři sopky, které mi sahají po kolena a z nichž jedna je možná navždy vyhaslá, nedělají ze mne moc velikého prince… A lehl si do trávy a plakal",
+      category: "pohady",
+      published: "19:30",
+      author: "Antoine de Saint-Exupéry",
     },
   ],
 };
