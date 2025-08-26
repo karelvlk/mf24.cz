@@ -14,7 +14,7 @@ export interface NewsArticle {
   manipulative: boolean;
 }
 
-export const newsData: Record<string, NewsArticle[]> = {
+export const rawNewsData: Record<string, NewsArticle[]> = {
   zdravi: [
     // Dezinformativní + manipulatívní
     {
@@ -232,6 +232,23 @@ export const newsData: Record<string, NewsArticle[]> = {
       manipulative: false,
     },
   ],
+};
+
+const shuffleArray = <T>(array: T[]): T[] => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
+export const newsData: Record<string, NewsArticle[]> = {
+  zdravi: shuffleArray(rawNewsData.zdravi),
+  priroda: shuffleArray(rawNewsData.priroda),
+  "ceska-politika": shuffleArray(rawNewsData["ceska-politika"]),
+  "zahranicni-politika": shuffleArray(rawNewsData["zahranicni-politika"]),
+  pohady: shuffleArray(rawNewsData.pohady),
 };
 
 // Empty/meaningless filler content for slow news days
