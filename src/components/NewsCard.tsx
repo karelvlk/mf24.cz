@@ -1,8 +1,9 @@
 import { NewsArticle } from "@/data/news";
+import { useNavigate } from "react-router-dom";
 
 interface NewsCardProps {
   article: NewsArticle;
-  variant?: 'main' | 'secondary' | 'compact';
+  variant?: 'main' | 'secondary' | 'compact' | 'minimal';
 }
 
 const categoryColors = {
@@ -22,6 +23,27 @@ const categoryLabels = {
 };
 
 export default function NewsCard({ article, variant = 'secondary' }: NewsCardProps) {
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    navigate(`/article/${article.id}`);
+  };
+
+  if (variant === 'minimal') {
+    return (
+      <article 
+        onClick={handleClick}
+        className="py-4 border-b border-separator last:border-b-0 cursor-pointer hover:bg-muted/30 transition-colors"
+      >
+        <h3 className="headline-secondary mb-2">
+          {article.title}
+        </h3>
+        <p className="body-text text-sm text-muted-foreground">
+          {article.perex}
+        </p>
+      </article>
+    );
+  }
   if (variant === 'main') {
     return (
       <article className="bg-white">

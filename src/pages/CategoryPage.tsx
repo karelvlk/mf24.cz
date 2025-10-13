@@ -1,8 +1,7 @@
 import { useParams } from "react-router-dom";
-import { getNewsForCategory, getMainArticle, getEmptyFillerArticles } from "@/data/news";
+import { getNewsForCategory } from "@/data/news";
 import NewsHeader from "@/components/NewsHeader";
 import NewsCard from "@/components/NewsCard";
-import ArticleRating from "@/components/ArticleRating";
 
 const categoryTitles = {
   'zdravi': 'Zdraví',
@@ -39,24 +38,8 @@ export default function CategoryPage() {
     );
   }
 
-  const mainArticle = getMainArticle(category);
-  const categoryArticles = getNewsForCategory(category).slice(1);
+  const categoryArticles = getNewsForCategory(category);
   const categoryTitle = categoryTitles[category as keyof typeof categoryTitles];
-  const accentColor = categoryAccentColors[category as keyof typeof categoryAccentColors];
-  const emptyFillers = getEmptyFillerArticles();
-
-  if (!mainArticle) {
-    return (
-      <div className="min-h-screen bg-background">
-        <NewsHeader />
-        <main className="container mx-auto px-4 py-8">
-          <h1 className="headline-primary text-center">
-            Kategorie nenalezena
-          </h1>
-        </main>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -64,25 +47,12 @@ export default function CategoryPage() {
 
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-3xl mx-auto">
-          <section>
-            <div className="mb-8">
-              <NewsCard article={mainArticle} variant="main" />
-            </div>
-            {category !== 'pohady' && <ArticleRating
-              articleId={mainArticle?.id}
-              onRatingChange={(rating) => console.log(`${category} main article rated:`, rating)}
-            />}
-          </section>
-
-          {categoryArticles.length > 0 && (
-            <section className="border-t border-separator pt-8 mt-12">
-              <div className="space-y-6">
-                {categoryArticles.slice(0, 3).map((article) => (
-                  <NewsCard key={article.id} article={article} />
-                ))}
-              </div>
-            </section>
-          )}
+          <h2 className="headline-primary mb-8">{categoryTitle}</h2>
+          <div>
+            {categoryArticles.map((article) => (
+              <NewsCard key={article.id} article={article} variant="minimal" />
+            ))}
+          </div>
         </div>
       </main>
     </div>
