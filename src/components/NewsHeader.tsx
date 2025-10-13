@@ -19,43 +19,43 @@ export default function NewsHeader() {
   });
 
   return (
-    <header className="bg-header text-header-foreground">
+    <header className="bg-white border-b border-separator">
       {/* Main header */}
       <div className="border-b border-separator">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <Link to="/" className="text-2xl font-bold">
-              MF24.cz
+            <Link to="/" className="text-xl font-bold tracking-tight text-foreground">
+              MF24.CZ
             </Link>
-            <div className="text-sm text-header-foreground/80">
-              {currentTime}
+            <div className="text-xs text-meta-text">
+              Nezávislé zpravodajství
             </div>
           </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="border-b border-separator">
+      <nav>
         <div className="container mx-auto px-4">
-          <div className="flex space-x-8">
+          <div className="flex space-x-6">
             <Link
               to="/"
-              className={`py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`py-3 text-sm transition-colors ${
                 location.pathname === '/'
-                  ? 'border-secondary text-secondary'
-                  : 'border-transparent hover:text-secondary'
+                  ? 'text-primary font-medium'
+                  : 'text-foreground hover:text-primary'
               }`}
             >
-              HLAVNÍ ZPRÁVY
+              Domov
             </Link>
             {categories.map((category) => (
               <Link
                 key={category.id}
                 to={category.path}
-                className={`py-3 text-sm font-medium border-b-2 transition-colors uppercase ${
+                className={`py-3 text-sm transition-colors ${
                   location.pathname === category.path
-                    ? 'border-secondary text-secondary'
-                    : 'border-transparent hover:text-secondary'
+                    ? 'text-primary font-medium'
+                    : 'text-foreground hover:text-primary'
                 }`}
               >
                 {category.label}

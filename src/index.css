@@ -6,57 +6,53 @@
 
 @layer base {
   :root {
-    /* News brand colors */
+    /* Clean, minimal news design - white/gray/black with blue accent */
     --background: 0 0% 100%;
-    --foreground: 0 0% 12%;
+    --foreground: 0 0% 13%;
 
-    /* News primary - deep blue for headers and links */
-    --primary: 214 100% 30%;
+    /* Primary - blue accent for interactive elements */
+    --primary: 214 100% 50%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 214 100% 45%;
+    --primary-light: 214 100% 60%;
 
-    /* News secondary - red for breaking/important */
-    --secondary: 0 85% 55%;
+    /* Secondary - subtle blue for categories */
+    --secondary: 214 80% 48%;
     --secondary-foreground: 0 0% 100%;
 
-    /* News accent - light blue for highlights */
-    --accent: 214 50% 90%;
-    --accent-foreground: 214 100% 25%;
+    /* Accent - very light for subtle highlights */
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 13%;
 
-    /* Content areas */
+    /* Content areas - clean white */
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 12%;
+    --card-foreground: 0 0% 13%;
 
-    /* Navigation and header */
-    --header: 214 100% 25%;
-    --header-foreground: 0 0% 100%;
+    /* Navigation and header - white background */
+    --header: 0 0% 100%;
+    --header-foreground: 0 0% 13%;
 
-    /* Text hierarchy */
-    --headline: 0 0% 8%;
+    /* Text hierarchy - blacks and grays */
+    --headline: 0 0% 13%;
     --subheadline: 0 0% 20%;
-    --body-text: 0 0% 25%;
-    --meta-text: 0 0% 50%;
+    --body-text: 0 0% 35%;
+    --meta-text: 0 0% 55%;
 
-    /* Borders and separators */
-    --border: 214 20% 88%;
-    --separator: 214 30% 85%;
+    /* Borders and separators - very subtle */
+    --border: 0 0% 90%;
+    --separator: 0 0% 88%;
 
     /* Interactive states */
-    --hover: 214 100% 40%;
-    --active: 214 100% 35%;
+    --hover: 214 100% 50%;
+    --active: 214 100% 45%;
 
-    /* Breaking news */
-    --breaking: 0 100% 50%;
-    --breaking-foreground: 0 0% 100%;
+    /* Categories - all use same blue */
+    --category-health: 214 80% 48%;
+    --category-nature: 214 80% 48%;
+    --category-politics: 214 80% 48%;
+    --category-world: 214 80% 48%;
+    --category-fairy-tales: 214 80% 48%;
 
-    /* Categories */
-    --category-health: 0 70% 65%;
-    --category-nature: 95 74% 42%;
-    --category-politics: 214 100% 30%;
-    --category-world: 260 60% 45%;
-    --category-fairy-tales: 290 65% 55%;
-
-    --radius: 0.25rem;
+    --radius: 0.125rem;
 
     --sidebar-background: 0 0% 98%;
 
@@ -120,46 +116,50 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+    @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
     overflow-y: hidden;
+    font-size: 16px;
+    line-height: 1.6;
   }
 
-  /* News typography */
+  /* Clean typography */
   .headline-primary {
     @apply text-3xl md:text-4xl font-bold leading-tight;
     color: hsl(var(--headline));
+    font-weight: 700;
   }
 
   .headline-secondary {
-    @apply text-xl md:text-2xl font-semibold leading-snug;
+    @apply text-xl md:text-2xl font-semibold leading-tight;
     color: hsl(var(--subheadline));
+    font-weight: 600;
   }
 
   .headline-tertiary {
-    @apply text-lg font-medium leading-snug;
+    @apply text-base md:text-lg font-medium leading-snug;
     color: hsl(var(--subheadline));
+    font-weight: 500;
   }
 
   .body-text {
     @apply text-base leading-relaxed;
     color: hsl(var(--body-text));
+    font-weight: 400;
   }
 
   .meta-text {
     @apply text-sm;
     color: hsl(var(--meta-text));
+    font-weight: 400;
   }
 
-  /* News components */
-  .breaking-badge {
-    @apply px-2 py-1 text-xs font-bold uppercase tracking-wider rounded;
-    background-color: hsl(var(--breaking));
-    color: hsl(var(--breaking-foreground));
-  }
-
+  /* Clean components */
   .category-badge {
-    @apply px-2 py-1 text-xs font-medium uppercase tracking-wide rounded;
+    @apply px-2.5 py-1 text-xs font-semibold uppercase tracking-wider;
+    background-color: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+    border-radius: 2px;
   }
 
   .news-separator {

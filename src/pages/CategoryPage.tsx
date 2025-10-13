@@ -63,14 +63,11 @@ export default function CategoryPage() {
     <div className="min-h-screen bg-background">
       <NewsHeader />
 
-      <main className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 flex flex-col h-full max-h-screen gap-8">
-            <section className="flex flex-col flex-1 min-h-0">
-              <h2 className="headline-secondary mb-6 border-b border-separator pb-2 flex-shrink-0" style={{ color: accentColor }}>
-                {category === 'pohady' ? 'HLAVNÍ POHÁDKA' : 'HLAVNÍ ZPRÁVA RUBRIKY'}
-              </h2>
-              <div className="flex-1">
+      <main className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-12">
+          <div className="flex flex-col gap-12">
+            <section>
+              <div className="mb-8">
                 <NewsCard article={mainArticle} variant="main" />
               </div>
               {category !== 'pohady' && <ArticleRating
@@ -79,21 +76,15 @@ export default function CategoryPage() {
               />}
             </section>
 
-            {/* Secondary articles */}
             {categoryArticles.length > 0 && (
-              <section>
-                <h2 className="headline-secondary mb-6 border-b border-separator pb-2" style={{ color: accentColor }}>
-                  DALŠÍ ZPRÁVY RUBRIKY
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {categoryArticles.slice(0, 2).map((article) => (
+              <section className="border-t border-separator pt-8">
+                <div className="space-y-6">
+                  {categoryArticles.slice(0, 3).map((article) => (
                     <NewsCard key={article.id} article={article} />
                   ))}
                 </div>
               </section>
             )}
-
-
           </div>
 
           <NewsSidebar excludeCategory={category} />

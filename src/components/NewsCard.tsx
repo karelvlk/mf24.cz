@@ -24,64 +24,52 @@ const categoryLabels = {
 export default function NewsCard({ article, variant = 'secondary' }: NewsCardProps) {
   if (variant === 'main') {
     return (
-      <article className="bg-card rounded-lg overflow-hidden border border-separator">
-        <div className="p-6">
-          <div className="flex items-center space-x-2 mb-3">
-            <span className={`category-badge text-white ${categoryColors[article.category]}`}>
-              {categoryLabels[article.category]}
-            </span>
-          </div>
-          <h1 className="headline-primary mb-4">
-            {article.title}
-          </h1>
-          <p className="body-text text-lg leading-relaxed mb-4">
-            {article.perex}
-          </p>
-          <div className="flex items-center justify-between meta-text border-t border-separator pt-4">
-            <span>{article.author}</span>
-            <span>{article.published}</span>
-          </div>
+      <article className="bg-white">
+        <div className="mb-4">
+          <span className="category-badge">
+            {categoryLabels[article.category]}
+          </span>
         </div>
+        <h1 className="headline-primary mb-6">
+          {article.title}
+        </h1>
+        <p className="body-text text-lg leading-relaxed">
+          {article.perex}
+        </p>
       </article>
     );
   }
 
   if (variant === 'compact') {
     return (
-      <article className="flex space-x-3 py-3 border-b border-separator last:border-b-0">
-        <div className="flex-1">
-          <h3 className="headline-tertiary mb-1 line-clamp-2 hover:text-primary cursor-pointer transition-colors">
-            {article.title}
-          </h3>
-          <div className="flex items-center space-x-2 meta-text">
-            <span className={`category-badge text-white text-xs ${categoryColors[article.category]}`}>
-              {categoryLabels[article.category]}
-            </span>
-            <span>{article.published}</span>
-          </div>
+      <article className="py-3 border-b border-separator last:border-b-0">
+        <h3 className="headline-tertiary mb-2 hover:text-primary cursor-pointer transition-colors">
+          {article.title}
+        </h3>
+        <div className="flex items-center space-x-2 meta-text text-xs">
+          <span>{article.published}</span>
         </div>
       </article>
     );
   }
 
   return (
-    <article className="bg-card border border-separator rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-      <div className="p-4">
-        <div className="flex items-center space-x-2 mb-2">
-          <span className={`category-badge text-white ${categoryColors[article.category]}`}>
-            {categoryLabels[article.category]}
-          </span>
-          <span className="meta-text">{article.published}</span>
-        </div>
-        <h2 className="headline-secondary mb-3 line-clamp-2 hover:text-primary cursor-pointer transition-colors">
-          {article.title}
-        </h2>
-        <p className="body-text text-sm line-clamp-3 mb-3 leading-relaxed">
-          {article.perex}
-        </p>
-        <div className="meta-text border-t border-separator pt-3">
-          {article.author}
-        </div>
+    <article className="bg-white pb-4 mb-4 border-b border-separator last:border-b-0">
+      <div className="mb-2">
+        <span className="category-badge text-xs">
+          {categoryLabels[article.category]}
+        </span>
+      </div>
+      <h2 className="headline-secondary mb-3 hover:text-primary cursor-pointer transition-colors">
+        {article.title}
+      </h2>
+      <p className="body-text leading-relaxed mb-2">
+        {article.perex}
+      </p>
+      <div className="meta-text text-xs">
+        <span>{article.published}</span>
+        <span className="mx-2">•</span>
+        <span>4 min čtení</span>
       </div>
     </article>
   );
