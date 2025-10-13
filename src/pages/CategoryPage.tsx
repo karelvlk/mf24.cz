@@ -2,7 +2,6 @@ import { useParams } from "react-router-dom";
 import { getNewsForCategory, getMainArticle, getEmptyFillerArticles } from "@/data/news";
 import NewsHeader from "@/components/NewsHeader";
 import NewsCard from "@/components/NewsCard";
-import NewsSidebar from "@/components/NewsSidebar";
 import ArticleRating from "@/components/ArticleRating";
 
 const categoryTitles = {
@@ -64,30 +63,26 @@ export default function CategoryPage() {
       <NewsHeader />
 
       <main className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-12">
-          <div className="flex flex-col gap-12">
-            <section>
-              <div className="mb-8">
-                <NewsCard article={mainArticle} variant="main" />
+        <div className="max-w-3xl mx-auto">
+          <section>
+            <div className="mb-8">
+              <NewsCard article={mainArticle} variant="main" />
+            </div>
+            {category !== 'pohady' && <ArticleRating
+              articleId={mainArticle?.id}
+              onRatingChange={(rating) => console.log(`${category} main article rated:`, rating)}
+            />}
+          </section>
+
+          {categoryArticles.length > 0 && (
+            <section className="border-t border-separator pt-8 mt-12">
+              <div className="space-y-6">
+                {categoryArticles.slice(0, 3).map((article) => (
+                  <NewsCard key={article.id} article={article} />
+                ))}
               </div>
-              {category !== 'pohady' && <ArticleRating
-                articleId={mainArticle?.id}
-                onRatingChange={(rating) => console.log(`${category} main article rated:`, rating)}
-              />}
             </section>
-
-            {categoryArticles.length > 0 && (
-              <section className="border-t border-separator pt-8">
-                <div className="space-y-6">
-                  {categoryArticles.slice(0, 3).map((article) => (
-                    <NewsCard key={article.id} article={article} />
-                  ))}
-                </div>
-              </section>
-            )}
-          </div>
-
-          <NewsSidebar excludeCategory={category} />
+          )}
         </div>
       </main>
     </div>

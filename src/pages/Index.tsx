@@ -1,7 +1,6 @@
 import { newsData, getEmptyFillerArticles } from "@/data/news";
 import NewsHeader from "@/components/NewsHeader";
 import NewsCard from "@/components/NewsCard";
-import NewsSidebar from "@/components/NewsSidebar";
 import ArticleRating from "@/components/ArticleRating";
 
 const Index = () => {
@@ -21,27 +20,24 @@ const Index = () => {
       <NewsHeader />
 
       <main className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-12">
-          <div className="flex flex-col gap-12">
-            <section>
-              <div className="mb-8">
-                <NewsCard article={mainArticles[0]} variant="main" />
-              </div>
-              <ArticleRating
-                articleId={mainArticles[0]?.id}
-                onRatingChange={(rating) => console.log('Main article rated:', rating)}
-              />
-            </section>
-            
-            <section className="border-t border-separator pt-8">
-              <div className="space-y-6">
-                {[...emptyFillers.slice(0, 3)].map((article) => (
-                  <NewsCard key={article.id} article={article} />
-                ))}
-              </div>
-            </section>
-          </div>
-          <NewsSidebar />
+        <div className="max-w-3xl mx-auto">
+          <section>
+            <div className="mb-8">
+              <NewsCard article={mainArticles[0]} variant="main" />
+            </div>
+            <ArticleRating
+              articleId={mainArticles[0]?.id}
+              onRatingChange={(rating) => console.log('Main article rated:', rating)}
+            />
+          </section>
+          
+          <section className="border-t border-separator pt-8 mt-12">
+            <div className="space-y-6">
+              {[...emptyFillers.slice(0, 3)].map((article) => (
+                <NewsCard key={article.id} article={article} />
+              ))}
+            </div>
+          </section>
         </div>
       </main>
     </div>
