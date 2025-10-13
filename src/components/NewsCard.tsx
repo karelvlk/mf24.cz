@@ -1,5 +1,6 @@
 import { NewsArticle } from "@/data/news";
 import { useNavigate } from "react-router-dom";
+import { calculateReadingTime, formatReadingTimeLabel } from "@/lib/utils";
 
 interface NewsCardProps {
   article: NewsArticle;
@@ -24,6 +25,16 @@ const categoryLabels = {
 
 export default function NewsCard({ article, variant = 'secondary' }: NewsCardProps) {
   const navigate = useNavigate();
+  const readingTimeLabel = formatReadingTimeLabel(
+    calculateReadingTime(article.perex)
+  );
+  const contextBadges = [
+    article.dezinformative ? { id: 'dezinformace', label: 'Dezinformace', className: 'badge badge-critical' } : null,
+    article.manipulative ? { id: 'manipulace', label: 'Manipulativní tón', className: 'badge badge-warning' } : null,
+    !article.dezinformative && !article.manipulative
+      ? { id: 'verified', label: 'Ověřeno redakcí', className: 'badge badge-neutral' }
+      : null
+  ].filter(Boolean) as { id: string; label: string; className: string }[];
 
   const handleClick = () => {
     navigate(`/article/${article.id}`);
@@ -33,14 +44,31 @@ export default function NewsCard({ article, variant = 'secondary' }: NewsCardPro
     return (
       <article 
         onClick={handleClick}
-        className="py-4 border-b border-separator last:border-b-0 cursor-pointer hover:bg-muted/30 transition-colors"
+        className="py-5 border-b border-separator last:border-b-0 cursor-pointer hover:bg-muted/40 transition-colors"
       >
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <span className="category-badge text-xs">
+            {categoryLabels[article.category]}
+          </span>
+          {contextBadges.map((badge) => (
+            <span key={badge.id} className={badge.className}>
+              {badge.label}
+            </span>
+          ))}
+        </div>
         <h3 className="headline-secondary mb-2">
           {article.title}
         </h3>
         <p className="body-text text-sm text-muted-foreground">
           {article.perex}
         </p>
+        <div className="flex flex-wrap items-center gap-2 mt-3 meta-text text-xs text-muted-foreground">
+          <span>{article.published}</span>
+          <span className="mx-1">•</span>
+          <span>{readingTimeLabel}</span>
+          <span className="mx-1">•</span>
+          <span>{article.author}</span>
+        </div>
       </article>
     );
   }
@@ -58,6 +86,22 @@ export default function NewsCard({ article, variant = 'secondary' }: NewsCardPro
         <p className="body-text text-lg leading-relaxed">
           {article.perex}
         </p>
+        <div className="flex flex-wrap items-center gap-2 mt-6 meta-text text-sm">
+          <span>{article.published}</span>
+          <span className="mx-1">•</span>
+          <span>{readingTimeLabel}</span>
+          <span className="mx-1">•</span>
+          <span>{article.author}</span>
+        </div>
+        {contextBadges.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-4">
+            {contextBadges.map((badge) => (
+              <span key={badge.id} className={badge.className}>
+                {badge.label}
+              </span>
+            ))}
+          </div>
+        )}
       </article>
     );
   }
@@ -91,8 +135,19 @@ export default function NewsCard({ article, variant = 'secondary' }: NewsCardPro
       <div className="meta-text text-xs">
         <span>{article.published}</span>
         <span className="mx-2">•</span>
-        <span>4 min čtení</span>
+        <span>{readingTimeLabel}</span>
+        <span className="mx-2">•</span>
+        <span>{article.author}</span>
       </div>
+      {contextBadges.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-3">
+          {contextBadges.map((badge) => (
+            <span key={badge.id} className={badge.className}>
+              {badge.label}
+            </span>
+          ))}
+        </div>
+      )}
     </article>
   );
 }

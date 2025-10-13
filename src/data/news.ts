@@ -2,6 +2,7 @@ export interface NewsArticle {
   id: string;
   title: string;
   perex: string;
+  content?: string;
   category:
     | "zdravi"
     | "priroda"
@@ -21,7 +22,7 @@ export const rawNewsData: Record<string, NewsArticle[]> = {
       id: "z1",
       title: "Farmaceutické firmy tají zázračný lék proti rakovině",
       perex:
-        "Podle anonymních zdrojů existuje lék, který dokáže vyléčit všechny typy rakoviny během několika dnů. Mocné farmaceutické koncerny jej však záměrně ukrývají, protože by přišly o miliardové zisky. Každý rok tak zbytečně umírají tisíce lidí, jen aby farmacie dál vydělávala. Lidé by se měli spojit a žádat pravdu o skutečných léčebných možnostech.",
+        "Podle anonymních zdrojů existuje lék, který dokáže vyléčit všechny typy rakoviny během několika dnů. Mocné farmaceutické koncerny jej však záměrně ukrývají, protože by přišly o miliardové zisky. Každý rok tak zbytečně umírají tisíce lidí, jen aby farmacie dál vydělávala. Lidé by se měli spojit a žádat pravdu o skutečných léčebných možnostech. Podle anonymních zdrojů existuje lék, který dokáže vyléčit všechny typy rakoviny během několika dnů. Mocné farmaceutické koncerny jej však záměrně ukrývají, protože by přišly o miliardové zisky. Každý rok tak zbytečně umírají tisíce lidí, jen aby farmacie dál vydělávala. Lidé by se měli spojit a žádat pravdu o skutečných léčebných možnostech. Podle anonymních zdrojů existuje lék, který dokáže vyléčit všechny typy rakoviny během několika dnů. Mocné farmaceutické koncerny jej však záměrně ukrývají, protože by přišly o miliardové zisky. Každý rok tak zbytečně umírají tisíce lidí, jen aby farmacie dál vydělávala. Lidé by se měli spojit a žádat pravdu o skutečných léčebných možnostech.",
       category: "zdravi",
       published: "09:30",
       author: "Redakce Pravda24",
