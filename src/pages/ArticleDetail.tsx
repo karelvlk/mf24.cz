@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { useExperimentMode } from "@/context/ExperimentModeContext";
 import { emptyFillerArticles, newsData } from "@/data/news";
 import {
   calculateReadingTime,
@@ -48,6 +49,7 @@ const DEFAULT_MAX_PAGES = 10;
 export default function ArticleDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isActive: experimentActive, markArticleVisited } = useExperimentMode();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [fontSize, setFontSize] = useState(DEFAULT_FONT_SIZE);
   const [lineHeight, setLineHeight] = useState(DEFAULT_LINE_HEIGHT);
@@ -71,6 +73,14 @@ export default function ArticleDetail() {
   ];
 
   const article = allArticles.find(a => a.id === id);
+
+  useEffect(() => {
+    if (!article || !experimentActive) {
+      return;
+    }
+
+    markArticleVisited(article.id);
+  }, [article, experimentActive, markArticleVisited]);
 
   if (!article) {
     return (
@@ -133,6 +143,11 @@ export default function ArticleDetail() {
   const allowRating = article.category !== "pohady";
   const shouldRenderFooterSection = hasReadingCheck || allowRating;
   const totalSlides = totalPages + (shouldRenderFooterSection ? 1 : 0);
+  const [questionsCompleted, setQuestionsCompleted] = useState(!hasReadingCheck);
+
+  useEffect(() => {
+    setQuestionsCompleted(!hasReadingCheck);
+  }, [hasReadingCheck]);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
@@ -312,6 +327,8 @@ export default function ArticleDetail() {
 
   const prevDisabled = currentSlide === 0;
   const nextDisabled = currentSlide >= totalSlides - 1;
+  const isLastSlide = currentSlide >= totalSlides - 1;
+  const showFinishButton = isLastSlide && hasReadingCheck && questionsCompleted;
 
   const completeNavigation = () => {
     if (exitTimeoutRef.current !== null) {
@@ -520,6 +537,7 @@ export default function ArticleDetail() {
                                   onRatingChange={(rating) => console.log("Article rated:", rating)}
                                   showRating={allowRating}
                                   questions={hasReadingCheck ? article.question : undefined}
+                                  onQuestionsCompletionChange={setQuestionsCompleted}
                                 />
                               </div>
                             </div>
@@ -547,14 +565,24 @@ export default function ArticleDetail() {
                       >
                         Předchozí
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleNext}
-                        disabled={nextDisabled}
-                      >
-                        Další
-                      </Button>
+                      {showFinishButton ? (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={handleBackClick}
+                        >
+                          Potvrdit
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleNext}
+                          disabled={nextDisabled}
+                        >
+                          Další
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>

@@ -1,10 +1,13 @@
 import { NewsArticle } from "@/data/news";
 import { useNavigate } from "react-router-dom";
-import { calculateReadingTime, formatReadingTimeLabel } from "@/lib/utils";
+import { calculateReadingTime, formatReadingTimeLabel, cn } from "@/lib/utils";
 
 interface NewsCardProps {
   article: NewsArticle;
   variant?: 'main' | 'secondary' | 'compact' | 'minimal';
+  disabled?: boolean;
+  muted?: boolean;
+  orderLabel?: string;
 }
 
 const categoryColors = {
@@ -23,7 +26,13 @@ const categoryLabels = {
   'pohady': 'POHÁDKY'
 };
 
-export default function NewsCard({ article, variant = 'secondary' }: NewsCardProps) {
+export default function NewsCard({
+  article,
+  variant = 'secondary',
+  disabled = false,
+  muted = false,
+  orderLabel,
+}: NewsCardProps) {
   const navigate = useNavigate();
   const readingTimeLabel = formatReadingTimeLabel(
     calculateReadingTime(article.perex)
@@ -37,6 +46,10 @@ export default function NewsCard({ article, variant = 'secondary' }: NewsCardPro
   ].filter(Boolean) as { id: string; label: string; className: string }[];
 
   const handleClick = () => {
+    if (disabled) {
+      return;
+    }
+
     navigate(`/article/${article.id}`);
   };
 
@@ -44,8 +57,18 @@ export default function NewsCard({ article, variant = 'secondary' }: NewsCardPro
     return (
       <article 
         onClick={handleClick}
-        className="py-5 border-b border-separator last:border-b-0 cursor-pointer hover:bg-muted/40 transition-colors"
+        aria-disabled={disabled}
+        className={cn(
+          "py-5 border-b border-separator last:border-b-0 transition-colors",
+          disabled ? "cursor-not-allowed pointer-events-none" : "cursor-pointer hover:bg-muted/40",
+          muted && "opacity-20 grayscale blur-sm select-none"
+        )}
       >
+        {orderLabel && (
+          <span className="badge badge-neutral mb-2 inline-flex">
+            {orderLabel}
+          </span>
+        )}
         <div className="flex flex-wrap items-center gap-2 mb-3">
           <span className="category-badge text-xs">
             {categoryLabels[article.category]}

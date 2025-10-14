@@ -1,4 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
+import { useExperimentMode } from "@/context/ExperimentModeContext";
+import { cn } from "@/lib/utils";
 
 const categories = [
   { id: 'ceska-politika', label: 'Z domova', path: '/ceska-politika' },
@@ -10,6 +12,7 @@ const categories = [
 
 export default function NewsHeader() {
   const location = useLocation();
+  const { isActive: experimentActive } = useExperimentMode();
   const currentTime = new Date().toLocaleString('cs-CZ', {
     day: 'numeric',
     month: 'long',
@@ -52,11 +55,16 @@ export default function NewsHeader() {
               <Link
                 key={category.id}
                 to={category.path}
-                className={`py-3 text-sm transition-colors ${
+                aria-disabled={experimentActive}
+                tabIndex={experimentActive ? -1 : 0}
+                onClick={experimentActive ? (event) => event.preventDefault() : undefined}
+                className={cn(
+                  "py-3 text-sm transition-colors",
                   location.pathname === category.path
                     ? 'text-primary font-medium'
-                    : 'text-foreground hover:text-primary'
-                }`}
+                    : 'text-foreground hover:text-primary',
+                  experimentActive && "cursor-not-allowed pointer-events-none text-muted-foreground/70 hover:text-muted-foreground/70"
+                )}
               >
                 {category.label}
               </Link>

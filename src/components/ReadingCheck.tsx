@@ -5,11 +5,16 @@ import { useMemo, useState } from "react";
 interface ReadingCheckProps {
   questions: QA[];
   variant?: "standalone" | "embedded";
+  onCompletionChange?: (completed: boolean) => void;
 }
 
 type AnswerStatus = "correct" | "incorrect" | undefined;
 
-export default function ReadingCheck({ questions, variant = "standalone" }: ReadingCheckProps) {
+export default function ReadingCheck({
+  questions,
+  variant = "standalone",
+  onCompletionChange
+}: ReadingCheckProps) {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number | null>>({});
   const [answerStatuses, setAnswerStatuses] = useState<Record<number, AnswerStatus>>({});
 
@@ -19,6 +24,7 @@ export default function ReadingCheck({ questions, variant = "standalone" }: Read
   );
 
   if (filteredQuestions.length === 0) {
+    onCompletionChange?.(true);
     return null;
   }
 
@@ -31,10 +37,17 @@ export default function ReadingCheck({ questions, variant = "standalone" }: Read
       [questionIndex]: answerIndex
     }));
 
-    setAnswerStatuses((prev) => ({
-      ...prev,
-      [questionIndex]: answer?.is_correct ? "correct" : "incorrect"
-    }));
+    setAnswerStatuses((prev) => {
+      const nextStatuses = {
+        ...prev,
+        [questionIndex]: answer?.is_correct ? "correct" : "incorrect"
+      };
+
+      const allAnsweredCorrectly = filteredQuestions.every((_, index) => nextStatuses[index] === "correct");
+      onCompletionChange?.(allAnsweredCorrectly);
+
+      return nextStatuses;
+    });
   };
 
   const containerClassName =

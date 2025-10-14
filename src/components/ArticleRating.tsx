@@ -1,23 +1,38 @@
 import ReadingCheck from "@/components/ReadingCheck";
 import { Button } from "@/components/ui/button";
 import type { QA } from "@/data/news";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface ArticleRatingProps {
   articleId?: string;
   onRatingChange?: (rating: "credible" | "not-credible" | "unsure") => void;
   questions?: QA[];
   showRating?: boolean;
+  onQuestionsCompletionChange?: (completed: boolean) => void;
 }
 
 export default function ArticleRating({
   articleId,
   onRatingChange,
   questions,
-  showRating = true
+  showRating = true,
+  onQuestionsCompletionChange,
 }: ArticleRatingProps) {
   const [selectedRating, setSelectedRating] = useState<string | null>(null);
   const hasQuestions = Array.isArray(questions) && questions.length > 0;
+
+  const handleCompletionChange = useCallback(
+    (completed: boolean) => {
+      onQuestionsCompletionChange?.(completed);
+    },
+    [onQuestionsCompletionChange]
+  );
+
+  useEffect(() => {
+    if (!hasQuestions) {
+      onQuestionsCompletionChange?.(true);
+    }
+  }, [hasQuestions, onQuestionsCompletionChange]);
 
   if (!showRating && !hasQuestions) {
     return null;
@@ -80,7 +95,11 @@ export default function ArticleRating({
 
       {hasQuestions && (
         <div className="flex-1 rounded-xl bg-white/70 px-4 py-4 shadow-sm md:px-6 md:py-6">
-          <ReadingCheck questions={questions} variant="embedded" />
+          <ReadingCheck
+            questions={questions}
+            variant="embedded"
+            onCompletionChange={handleCompletionChange}
+          />
         </div>
       )}
     </div>
