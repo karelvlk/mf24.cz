@@ -27,6 +27,7 @@ interface PaginateArticleOptions {
   lineHeight?: number;
   charsPerLine?: number;
   linesPerPage?: number;
+  totalPages?: number;
 }
 
 export function paginateArticleContent(
@@ -45,6 +46,24 @@ export function paginateArticleContent(
   }
 
   const words = sanitized.split(" ");
+  const { totalPages } = options;
+
+  if (typeof totalPages === "number" && Number.isFinite(totalPages) && totalPages > 0) {
+    const targetPages = Math.max(1, Math.floor(totalPages));
+    const wordsPerPage = Math.max(1, Math.ceil(words.length / targetPages));
+    const pages: string[] = [];
+
+    for (let index = 0; index < words.length; index += wordsPerPage) {
+      pages.push(words.slice(index, index + wordsPerPage).join(" "));
+    }
+
+    if (pages.length < targetPages) {
+      pages.push(...Array.from({ length: targetPages - pages.length }, () => ""));
+    }
+
+    return pages;
+  }
+
   const lines: string[] = [];
   let currentLine = "";
 

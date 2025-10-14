@@ -43,6 +43,7 @@ const DEFAULT_CHARS_PER_LINE = 60;
 const DEFAULT_LINES_PER_PAGE = 7;
 const APPROX_CHAR_WIDTH_MULTIPLIER = 0.55;
 const FALLBACK_AVAILABLE_HEIGHT = 120;
+const DEFAULT_MAX_PAGES = 10;
 
 export default function ArticleDetail() {
   const { id } = useParams<{ id: string }>();
@@ -50,6 +51,7 @@ export default function ArticleDetail() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [fontSize, setFontSize] = useState(DEFAULT_FONT_SIZE);
   const [lineHeight, setLineHeight] = useState(DEFAULT_LINE_HEIGHT);
+  const [pageCount, setPageCount] = useState<number | null>(null);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [animationState, setAnimationState] = useState<"idle" | "enter" | "exit">("idle");
@@ -105,7 +107,7 @@ export default function ArticleDetail() {
     month: 'long',
     year: 'numeric'
   });
-  const pages = useMemo(
+  const autoPages = useMemo(
     () =>
       paginateArticleContent(articleBody, {
         fontSize: fontSize,
@@ -113,10 +115,24 @@ export default function ArticleDetail() {
         charsPerLine: paginationMetrics.charsPerLine,
         linesPerPage: paginationMetrics.linesPerPage
       }),
-    [articleBody, paginationMetrics.charsPerLine, paginationMetrics.linesPerPage]
+    [articleBody, fontSize, lineHeight, paginationMetrics.charsPerLine, paginationMetrics.linesPerPage]
   );
+  const effectivePageCount = Math.max(1, pageCount ?? (autoPages.length || 1));
+  const pages = useMemo(() => {
+    if (pageCount === null) {
+      return autoPages;
+    }
+
+    return paginateArticleContent(articleBody, { totalPages: effectivePageCount });
+  }, [articleBody, autoPages, pageCount, effectivePageCount]);
   const totalPages = pages.length;
   const pageHeight = Math.ceil(fontSize * lineHeight * paginationMetrics.linesPerPage);
+  const pageSliderMax = Math.max(DEFAULT_MAX_PAGES, effectivePageCount + 5);
+
+  const hasReadingCheck = Array.isArray(article.question) && article.question.length > 0;
+  const allowRating = article.category !== "pohady";
+  const shouldRenderFooterSection = hasReadingCheck || allowRating;
+  const totalSlides = totalPages + (shouldRenderFooterSection ? 1 : 0);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
@@ -195,7 +211,7 @@ export default function ArticleDetail() {
 
     carouselApi.scrollTo(0);
     setCurrentSlide(0);
-  }, [pages.length, carouselApi]);
+  }, [pages.length, shouldRenderFooterSection, carouselApi]);
 
   useLayoutEffect(() => {
     const updateMetrics = () => {
@@ -277,16 +293,25 @@ export default function ArticleDetail() {
     }
   };
 
+  const handlePageCountChange = (value: number[]) => {
+    const next = value[0];
+    if (typeof next === "number" && Number.isFinite(next)) {
+      const rounded = Math.max(1, Math.round(next));
+      setPageCount(rounded);
+    }
+  };
+
   const handleResetSettings = () => {
     setFontSize(DEFAULT_FONT_SIZE);
     setLineHeight(DEFAULT_LINE_HEIGHT);
+    setPageCount(null);
   };
 
   const handlePrev = () => carouselApi?.scrollPrev();
   const handleNext = () => carouselApi?.scrollNext();
 
   const prevDisabled = currentSlide === 0;
-  const nextDisabled = currentSlide >= totalPages - 1;
+  const nextDisabled = currentSlide >= totalSlides - 1;
 
   const completeNavigation = () => {
     if (exitTimeoutRef.current !== null) {
@@ -326,7 +351,14 @@ export default function ArticleDetail() {
     completeNavigation();
   };
 
-  const containerClassNames = ["relative", "article-detail-motion"];
+  const containerClassNames = [
+    "relative",
+    "flex",
+    "flex-1",
+    "flex-col",
+    "overflow-hidden",
+    "article-detail-motion"
+  ];
   if (!shouldReduceMotion) {
     if (animationState === "enter") {
       containerClassNames.push("article-detail-enter");
@@ -336,7 +368,7 @@ export default function ArticleDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
       <NewsHeader />
       <div
         className={containerClassNames.join(" ")}
@@ -393,8 +425,24 @@ export default function ArticleDetail() {
                   step={0.1}
                 />
               </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="article-page-count">Počet stran</Label>
+                  <span className="text-sm font-medium text-foreground">
+                    {effectivePageCount}
+                  </span>
+                </div>
+                <Slider
+                  id="article-page-count"
+                  value={[effectivePageCount]}
+                  onValueChange={handlePageCountChange}
+                  min={1}
+                  max={pageSliderMax}
+                  step={1}
+                />
+              </div>
               <p className="text-xs text-muted-foreground">
-                Rozložení textu se automaticky přizpůsobí velikosti obrazovky a nastavení písma.
+                Rozložení textu se automaticky přizpůsobí velikosti obrazovky a nastavení písma. Počet stran můžete upravit pro rovnoměrné rozdělení textu.
               </p>
             </div>
             <DialogFooter className="mt-4">
@@ -405,97 +453,114 @@ export default function ArticleDetail() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        <main className="container mx-auto px-3 py-6 md:px-4 md:py-8">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={handleBackClick}
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft size={16} />
-              Zpět
-            </button>
-            <div className="meta-text text-xs text-muted-foreground">
-              Poslední aktualizace {lastUpdatedLabel}
-            </div>
-          </div>
-
-          <article className="rounded-lg bg-white p-5 shadow-sm md:p-6">
-            <h1 className="headline-primary mb-5">
-              {article.title}
-            </h1>
-
-            <div className="meta-text text-sm text-muted-foreground mb-5">
-              {metaLabel}
-            </div>
-            <div ref={textContainerRef}>
-              <Carousel
-                className="mt-6"
-                setApi={setCarouselApi}
-                opts={{ loop: false }}
+        <main className="flex flex-1 justify-center overflow-hidden px-3 py-4 md:px-4 md:py-8">
+          <div className="flex h-full w-full max-w-3xl flex-col gap-3 md:gap-4">
+            <div className="flex h-12 flex-none items-center justify-between">
+              <button
+                onClick={handleBackClick}
+                className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
               >
-              <CarouselContent>
-                {pages.map((page, index) => (
-                  <CarouselItem key={index} className="w-full">
-                    <div className="w-full">
-                      <div
-                        className="w-full rounded-md bg-white/80 px-4 py-4 md:px-6"
-                        style={{
-                          fontSize: `${fontSize}px`,
-                          lineHeight,
-                          minHeight: `${pageHeight}px`
-                        }}
-                      >
-                        <p className="whitespace-pre-wrap text-foreground">
-                          {page}
-                        </p>
-                      </div>
-                    </div>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              </Carousel>
-            </div>
-
-            <div
-              ref={controlsRef}
-              className="mt-6 flex flex-col items-center gap-4 md:flex-row md:justify-between"
-            >
-              <span className="text-sm text-muted-foreground">
-                Strana {currentSlide + 1} / {totalPages}
-              </span>
-              {totalPages > 1 && (
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handlePrev}
-                    disabled={prevDisabled}
-                  >
-                    Předchozí
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleNext}
-                    disabled={nextDisabled}
-                  >
-                    Další
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {article.category !== 'pohady' && (
-              <div className="border-t border-separator pt-8 mt-8">
-                <ArticleRating
-                  articleId={article.id}
-                  onRatingChange={(rating) => console.log('Article rated:', rating)}
-                />
+                <ArrowLeft size={16} />
+                Zpět
+              </button>
+              <div className="meta-text text-xs text-muted-foreground">
+                Poslední aktualizace {lastUpdatedLabel}
               </div>
-            )}
-          </article>
-        </div>
+            </div>
+
+            <article className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-lg bg-white shadow-sm">
+              <div className="flex h-[120px] flex-none flex-col justify-center gap-2 border-b border-separator/50 px-5 md:h-[160px] md:gap-3 md:px-6">
+                <h1 className="headline-primary">
+                  {article.title}
+                </h1>
+                <div className="meta-text text-sm text-muted-foreground">
+                  {metaLabel}
+                </div>
+              </div>
+
+              <div className="flex flex-1 min-h-0 flex-col overflow-hidden px-3 py-4 md:px-5">
+                <div ref={textContainerRef} className="flex flex-1 min-h-0 flex-col overflow-hidden">
+                  <Carousel
+                    className="flex h-full min-h-0 flex-1 flex-col"
+                    setApi={setCarouselApi}
+                    opts={{ loop: false }}
+                  >
+                    <CarouselContent className="h-full min-h-0">
+                      {Array.from({ length: totalSlides }).map((_, index) => {
+                        if (index < totalPages) {
+                          const page = pages[index];
+
+                          return (
+                            <CarouselItem key={`page-${index}`} className="flex h-full min-h-0">
+                              <div className="flex h-full w-full min-h-0">
+                                <div
+                                  className="flex h-full min-h-0 w-full flex-col rounded-md bg-white/80 px-4 py-4 md:px-6"
+                                  style={{
+                                    fontSize: `${fontSize}px`,
+                                    lineHeight,
+                                    height: "100%",
+                                    minHeight: `${pageHeight}px`
+                                  }}
+                                >
+                                  <p className="flex-1 whitespace-pre-wrap pb-1 text-foreground">
+                                    {page}
+                                  </p>
+                                </div>
+                              </div>
+                            </CarouselItem>
+                          );
+                        }
+
+                        return (
+                          <CarouselItem key="rating-slide" className="flex h-full min-h-0">
+                            <div className="flex h-full w-full items-start">
+                              <div className="w-full">
+                                <ArticleRating
+                                  articleId={article.id}
+                                  onRatingChange={(rating) => console.log("Article rated:", rating)}
+                                  showRating={allowRating}
+                                  questions={hasReadingCheck ? article.question : undefined}
+                                />
+                              </div>
+                            </div>
+                          </CarouselItem>
+                        );
+                      })}
+                    </CarouselContent>
+                  </Carousel>
+                </div>
+
+                <div
+                  ref={controlsRef}
+                  className="flex h-[80px] flex-none flex-col items-center justify-center gap-3 border-t border-separator/40 pt-4 md:h-[104px] md:flex-row md:justify-between"
+                >
+                  <span className="text-sm text-muted-foreground">
+                    Strana {Math.min(currentSlide + 1, totalSlides)} / {totalSlides}
+                  </span>
+                  {totalSlides > 1 && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handlePrev}
+                        disabled={prevDisabled}
+                      >
+                        Předchozí
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleNext}
+                        disabled={nextDisabled}
+                      >
+                        Další
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </article>
+          </div>
         </main>
       </div>
     </div>
