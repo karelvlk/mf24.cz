@@ -506,6 +506,7 @@ export default function ArticleDetail() {
                       {Array.from({ length: totalSlides }).map((_, index) => {
                         if (index < totalPages) {
                           const page = pages[index];
+                          const pageText = page.replace(/\n+/g, " ").trim();
 
                           return (
                             <CarouselItem key={`page-${index}`} className="flex h-full min-h-0 !pl-0">
@@ -519,8 +520,11 @@ export default function ArticleDetail() {
                                     minHeight: `${pageHeight}px`
                                   }}
                                 >
-                                  <p className="flex-1 whitespace-pre-wrap pb-1 text-foreground">
-                                    {page}
+                                  <p
+                                    className="w-full pb-1 text-foreground"
+                                    style={{ textAlign: "justify", textJustify: "inter-word" }}
+                                  >
+                                    {pageText}
                                   </p>
                                 </div>
                               </div>
