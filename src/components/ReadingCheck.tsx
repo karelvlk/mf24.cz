@@ -8,15 +8,12 @@ interface ReadingCheckProps {
   onCompletionChange?: (completed: boolean) => void;
 }
 
-type AnswerStatus = "correct" | "incorrect" | undefined;
-
 export default function ReadingCheck({
   questions,
   variant = "standalone",
   onCompletionChange
 }: ReadingCheckProps) {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number | null>>({});
-  const [answerStatuses, setAnswerStatuses] = useState<Record<number, AnswerStatus>>({});
 
   const filteredQuestions = useMemo(
     () => questions.filter((qa) => qa.question && qa.answers && qa.answers.length > 0),
@@ -29,25 +26,15 @@ export default function ReadingCheck({
   }
 
   const handleAnswerClick = (questionIndex: number, answerIndex: number) => {
-    const question = filteredQuestions[questionIndex];
-    const answer = question?.answers?.[answerIndex];
-
-    setSelectedAnswers((prev) => ({
-      ...prev,
+    const nextSelected = {
+      ...selectedAnswers,
       [questionIndex]: answerIndex
-    }));
+    };
 
-    setAnswerStatuses((prev) => {
-      const nextStatuses = {
-        ...prev,
-        [questionIndex]: answer?.is_correct ? "correct" : "incorrect"
-      };
+    setSelectedAnswers(nextSelected);
 
-      const allAnsweredCorrectly = filteredQuestions.every((_, index) => nextStatuses[index] === "correct");
-      onCompletionChange?.(allAnsweredCorrectly);
-
-      return nextStatuses;
-    });
+    const allAnswered = filteredQuestions.every((_, index) => typeof nextSelected[index] === "number");
+    onCompletionChange?.(allAnswered);
   };
 
   const containerClassName =
@@ -58,7 +45,6 @@ export default function ReadingCheck({
   return (
     <div className={containerClassName}>
       {filteredQuestions.map((qa, questionIndex) => {
-        const status = answerStatuses[questionIndex];
         const selectedAnswer = selectedAnswers[questionIndex];
 
         const itemClass =
@@ -85,13 +71,7 @@ export default function ReadingCheck({
                 <div className="flex flex-wrap gap-3">
                   {qa.answers.map((answer, answerIndex) => {
                     const isSelected = selectedAnswer === answerIndex;
-                    let variant: "default" | "destructive" | "outline" = "outline";
-
-                    if (isSelected && status === "correct") {
-                      variant = "default";
-                    } else if (isSelected && status === "incorrect") {
-                      variant = "destructive";
-                    }
+                    const variant: "default" | "outline" = isSelected ? "default" : "outline";
 
                     return (
                       <Button
@@ -108,17 +88,6 @@ export default function ReadingCheck({
                 </div>
               </div>
             </div>
-
-            {status === "correct" && (
-              <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
-                Správná odpověď. Děkujeme, že čtete pozorně!
-              </p>
-            )}
-            {status === "incorrect" && (
-              <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
-                Tato odpověď nesouhlasí s textem. Zkuste to znovu.
-              </p>
-            )}
 
             {showDivider && <div className="h-px bg-separator/30" />}
           </div>
