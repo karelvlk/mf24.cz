@@ -25,7 +25,7 @@ export default function NewsHeader() {
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <Link to="/" className="text-xl font-bold tracking-tight text-foreground">
-              MF24.CZ
+              ZPRAVY24.cz
             </Link>
             <div className="text-xs text-meta-text">
               Nezávislé zpravodajství

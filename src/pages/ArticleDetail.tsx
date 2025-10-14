@@ -453,8 +453,8 @@ export default function ArticleDetail() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        <main className="flex flex-1 justify-center overflow-hidden px-3 py-4 md:px-4 md:py-8">
-          <div className="flex h-full w-full max-w-3xl flex-col gap-3 md:gap-4">
+        <main className="flex flex-1 justify-center overflow-hidden px-2 py-2 md:px-3 md:py-4">
+          <div className="flex h-full w-full max-w-4xl flex-col gap-2 md:gap-3">
             <div className="flex h-12 flex-none items-center justify-between">
               <button
                 onClick={handleBackClick}
@@ -469,7 +469,7 @@ export default function ArticleDetail() {
             </div>
 
             <article className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-lg bg-white shadow-sm">
-              <div className="flex h-[120px] flex-none flex-col justify-center gap-2 border-b border-separator/50 px-5 md:h-[160px] md:gap-3 md:px-6">
+              <div className="flex h-[96px] flex-none flex-col justify-center gap-2 border-b border-separator/50 px-3 md:h-[136px] md:gap-2 md:px-4">
                 <h1 className="headline-primary">
                   {article.title}
                 </h1>
@@ -478,23 +478,23 @@ export default function ArticleDetail() {
                 </div>
               </div>
 
-              <div className="flex flex-1 min-h-0 flex-col overflow-hidden px-3 py-4 md:px-5">
+              <div className="flex flex-1 min-h-0 flex-col overflow-hidden px-1 py-3 md:px-2">
                 <div ref={textContainerRef} className="flex flex-1 min-h-0 flex-col overflow-hidden">
                   <Carousel
                     className="flex h-full min-h-0 flex-1 flex-col"
                     setApi={setCarouselApi}
                     opts={{ loop: false }}
                   >
-                    <CarouselContent className="h-full min-h-0">
+                    <CarouselContent className="h-full min-h-0 !ml-0">
                       {Array.from({ length: totalSlides }).map((_, index) => {
                         if (index < totalPages) {
                           const page = pages[index];
 
                           return (
-                            <CarouselItem key={`page-${index}`} className="flex h-full min-h-0">
+                            <CarouselItem key={`page-${index}`} className="flex h-full min-h-0 !pl-0">
                               <div className="flex h-full w-full min-h-0">
                                 <div
-                                  className="flex h-full min-h-0 w-full flex-col rounded-md bg-white/80 px-4 py-4 md:px-6"
+                                  className="flex h-full min-h-0 w-full flex-col rounded-md bg-white/80 px-1.5 py-3 md:px-3"
                                   style={{
                                     fontSize: `${fontSize}px`,
                                     lineHeight,
@@ -512,7 +512,7 @@ export default function ArticleDetail() {
                         }
 
                         return (
-                          <CarouselItem key="rating-slide" className="flex h-full min-h-0">
+                          <CarouselItem key="rating-slide" className="flex h-full min-h-0 !pl-0">
                             <div className="flex h-full w-full items-start">
                               <div className="w-full">
                                 <ArticleRating
@@ -532,7 +532,7 @@ export default function ArticleDetail() {
 
                 <div
                   ref={controlsRef}
-                  className="flex h-[80px] flex-none flex-col items-center justify-center gap-3 border-t border-separator/40 pt-4 md:h-[104px] md:flex-row md:justify-between"
+                  className="flex h-[64px] flex-none flex-col items-center justify-center gap-3 border-t border-separator/40 pt-3 md:h-[84px] md:flex-row md:justify-between"
                 >
                   <span className="text-sm text-muted-foreground">
                     Strana {Math.min(currentSlide + 1, totalSlides)} / {totalSlides}

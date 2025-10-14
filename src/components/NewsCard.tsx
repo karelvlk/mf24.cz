@@ -59,7 +59,7 @@ export default function NewsCard({ article, variant = 'secondary' }: NewsCardPro
         <h3 className="headline-secondary mb-2">
           {article.title}
         </h3>
-        <p className="body-text text-sm text-muted-foreground">
+        <p className="body-text text-sm text-muted-foreground line-clamp-1">
           {article.perex}
         </p>
         <div className="flex flex-wrap items-center gap-2 mt-3 meta-text text-xs text-muted-foreground">
