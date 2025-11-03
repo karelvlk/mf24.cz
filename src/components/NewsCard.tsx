@@ -1,6 +1,6 @@
 import { NewsArticle } from "@/data/news";
+import { calculateReadingTime, cn, formatReadingTimeLabel } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
-import { calculateReadingTime, formatReadingTimeLabel, cn } from "@/lib/utils";
 
 interface NewsCardProps {
   article: NewsArticle;
@@ -55,7 +55,7 @@ export default function NewsCard({
 
   if (variant === 'minimal') {
     return (
-      <article 
+      <article
         onClick={handleClick}
         aria-disabled={disabled}
         className={cn(
@@ -73,11 +73,11 @@ export default function NewsCard({
           <span className="category-badge text-xs">
             {categoryLabels[article.category]}
           </span>
-          {contextBadges.map((badge) => (
+          {/* {contextBadges.map((badge) => (
             <span key={badge.id} className={badge.className}>
               {badge.label}
             </span>
-          ))}
+          ))} */}
         </div>
         <h3 className="headline-secondary mb-2">
           {article.title}

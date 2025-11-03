@@ -17,6 +17,7 @@ type CarouselProps = {
   plugins?: CarouselPlugin
   orientation?: "horizontal" | "vertical"
   setApi?: (api: CarouselApi) => void
+  onReachEnd?: () => void
 }
 
 type CarouselContextProps = {
@@ -26,6 +27,7 @@ type CarouselContextProps = {
   scrollNext: () => void
   canScrollPrev: boolean
   canScrollNext: boolean
+  onReachEnd?: () => void
 } & CarouselProps
 
 const CarouselContext = React.createContext<CarouselContextProps | null>(null)
@@ -52,6 +54,7 @@ const Carousel = React.forwardRef<
       plugins,
       className,
       children,
+      onReachEnd,
       ...props
     },
     ref
@@ -80,20 +83,26 @@ const Carousel = React.forwardRef<
     }, [api])
 
     const scrollNext = React.useCallback(() => {
-      api?.scrollNext()
-    }, [api])
+      if (!api) {
+        return
+      }
+
+      if (api.canScrollNext()) {
+        api.scrollNext()
+        return
+      }
+
+      onReachEnd?.()
+    }, [api, onReachEnd])
 
     const handleKeyDown = React.useCallback(
       (event: React.KeyboardEvent<HTMLDivElement>) => {
-        if (event.key === "ArrowLeft") {
-          event.preventDefault()
-          scrollPrev()
-        } else if (event.key === "ArrowRight") {
+        if (event.key === "ArrowRight") {
           event.preventDefault()
           scrollNext()
         }
       },
-      [scrollPrev, scrollNext]
+      [scrollNext]
     )
 
     React.useEffect(() => {
@@ -130,6 +139,7 @@ const Carousel = React.forwardRef<
           scrollNext,
           canScrollPrev,
           canScrollNext,
+          onReachEnd,
         }}
       >
         <div

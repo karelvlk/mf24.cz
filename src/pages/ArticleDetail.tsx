@@ -1,5 +1,6 @@
-import ArticleRating from "@/components/ArticleRating";
+import ArticleRating, { RATING_SHORTCUTS } from "@/components/ArticleRating";
 import NewsHeader from "@/components/NewsHeader";
+import QuestionSlide from "@/components/QuestionSlide";
 import { Button } from "@/components/ui/button";
 import {
   Carousel,
@@ -22,12 +23,13 @@ import { useExperimentMode } from "@/context/ExperimentModeContext";
 import { emptyFillerArticles, newsData } from "@/data/news";
 import {
   calculateReadingTime,
+  cn,
   formatReadingTimeLabel,
   paginateArticleContent,
 } from "@/lib/utils";
 import { ArrowLeft, Settings2 } from "lucide-react";
 import type { AnimationEvent as ReactAnimationEvent } from "react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 const categoryLabels = {
@@ -38,13 +40,21 @@ const categoryLabels = {
   'pohady': 'POHÁDKY'
 };
 
-const DEFAULT_FONT_SIZE = 18;
-const DEFAULT_LINE_HEIGHT = 1.6;
+const DEFAULT_FONT_SIZE = 28;
+const DEFAULT_LINE_HEIGHT = 2.0;
 const DEFAULT_CHARS_PER_LINE = 60;
 const DEFAULT_LINES_PER_PAGE = 7;
 const APPROX_CHAR_WIDTH_MULTIPLIER = 0.55;
 const FALLBACK_AVAILABLE_HEIGHT = 120;
 const DEFAULT_MAX_PAGES = 10;
+
+type SlideDescriptor =
+  | { type: "page"; index: number }
+  | { type: "rating" }
+  | { type: "question"; index: number };
+
+const KEYCAP_CLASS =
+  "rounded-md border border-border bg-muted/40 px-1.5 py-[2px] text-[11px] font-semibold uppercase tracking-wide text-foreground shadow-sm";
 
 export default function ArticleDetail() {
   const { id } = useParams<{ id: string }>();
@@ -61,10 +71,12 @@ export default function ArticleDetail() {
   const exitTimeoutRef = useRef<number | null>(null);
   const textContainerRef = useRef<HTMLDivElement | null>(null);
   const controlsRef = useRef<HTMLDivElement | null>(null);
+  const carouselContainerRef = useRef<HTMLDivElement | null>(null);
   const [paginationMetrics, setPaginationMetrics] = useState({
     charsPerLine: DEFAULT_CHARS_PER_LINE,
     linesPerPage: DEFAULT_LINES_PER_PAGE
   });
+  const [questionAnswers, setQuestionAnswers] = useState<number[]>([]);
 
   // Find article in all categories
   const allArticles = [
@@ -82,41 +94,25 @@ export default function ArticleDetail() {
     markArticleVisited(article.id);
   }, [article, experimentActive, markArticleVisited]);
 
-  if (!article) {
-    return (
-      <div className="min-h-screen bg-background">
-        <NewsHeader />
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-3xl mx-auto">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-8 transition-colors"
-            >
-              <ArrowLeft size={16} />
-              Zpět
-            </button>
-            <h1 className="headline-primary text-center">Článek nenalezen</h1>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+  const articleContent = article?.content ?? "";
+  const articlePerex = article?.perex ?? "";
   const articleBody =
-    article.content && article.content.trim().length > 0
-      ? article.content
-      : article.perex;
-
-  const readingTimeLabel = formatReadingTimeLabel(
-    calculateReadingTime(articleBody)
+    articleContent.trim().length > 0 ? articleContent : articlePerex;
+  const hasReadingCheck =
+    Array.isArray(article?.question) && article.question.length > 0;
+  const questionItems = useMemo(
+    () =>
+      Array.isArray(article?.question)
+        ? article.question.filter(
+            (qa) =>
+              typeof qa?.question === "string" &&
+              qa.question.trim().length > 0 &&
+              Array.isArray(qa.answers) &&
+              qa.answers.length > 0
+          )
+        : [],
+    [article]
   );
-  const metaItems = [article.published, readingTimeLabel, article.author].filter(Boolean);
-  const metaLabel = metaItems.join(" • ");
-  const lastUpdatedLabel = new Date().toLocaleDateString('cs-CZ', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  });
   const autoPages = useMemo(
     () =>
       paginateArticleContent(articleBody, {
@@ -135,19 +131,25 @@ export default function ArticleDetail() {
 
     return paginateArticleContent(articleBody, { totalPages: effectivePageCount });
   }, [articleBody, autoPages, pageCount, effectivePageCount]);
-  const totalPages = pages.length;
-  const pageHeight = Math.ceil(fontSize * lineHeight * paginationMetrics.linesPerPage);
-  const pageSliderMax = Math.max(DEFAULT_MAX_PAGES, effectivePageCount + 5);
+  const allowRating = Boolean(article) && article.category !== "pohady";
+  const slides = useMemo<SlideDescriptor[]>(() => {
+    const computedSlides: SlideDescriptor[] = pages.map((_, index) => ({
+      type: "page",
+      index
+    }));
 
-  const hasReadingCheck = Array.isArray(article.question) && article.question.length > 0;
-  const allowRating = article.category !== "pohady";
-  const shouldRenderFooterSection = hasReadingCheck || allowRating;
-  const totalSlides = totalPages + (shouldRenderFooterSection ? 1 : 0);
+    if (allowRating) {
+      computedSlides.push({ type: "rating" });
+    }
+
+    questionItems.forEach((_, index) => {
+      computedSlides.push({ type: "question", index });
+    });
+
+    return computedSlides;
+  }, [allowRating, pages, questionItems]);
+  const totalSlides = slides.length;
   const [questionsCompleted, setQuestionsCompleted] = useState(!hasReadingCheck);
-
-  useEffect(() => {
-    setQuestionsCompleted(!hasReadingCheck);
-  }, [hasReadingCheck]);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
@@ -226,7 +228,64 @@ export default function ArticleDetail() {
 
     carouselApi.scrollTo(0);
     setCurrentSlide(0);
-  }, [pages.length, shouldRenderFooterSection, carouselApi]);
+  }, [slides.length, carouselApi]);
+
+  useEffect(() => {
+    if (!carouselContainerRef.current) {
+      return;
+    }
+
+    carouselContainerRef.current.focus();
+  }, []);
+
+  useEffect(() => {
+    if (questionItems.length === 0) {
+      setQuestionAnswers([]);
+      return;
+    }
+
+    setQuestionAnswers((previous) =>
+      questionItems.map((_, index) =>
+        typeof previous[index] === "number" ? previous[index] : -1
+      )
+    );
+  }, [questionItems]);
+
+  useEffect(() => {
+    if (!hasReadingCheck || questionItems.length === 0) {
+      setQuestionsCompleted(true);
+      return;
+    }
+
+    const allAnswered = questionItems.every((_, index) => {
+      const answerIndex = questionAnswers[index];
+      return typeof answerIndex === "number" && answerIndex >= 0;
+    });
+
+    setQuestionsCompleted(allAnswered);
+  }, [hasReadingCheck, questionItems, questionAnswers]);
+
+  const handleQuestionAnswer = useCallback((questionIndex: number, answerIndex: number) => {
+    setQuestionAnswers((previous) => {
+      const next = [...previous];
+      next[questionIndex] = answerIndex;
+      return next;
+    });
+  }, []);
+
+  const currentSlideDescriptor = slides[currentSlide] ?? null;
+  const currentQuestionKeys =
+    currentSlideDescriptor?.type === "question"
+      ? Array.from(
+          {
+            length:
+              questionItems[currentSlideDescriptor.index]?.answers?.length ?? 0
+          },
+          (_, index) => (index + 1).toString()
+        )
+      : [];
+  const showQuestionHints = currentQuestionKeys.length > 0;
+  const showRatingHints = currentSlideDescriptor?.type === "rating";
 
   useLayoutEffect(() => {
     const updateMetrics = () => {
@@ -293,6 +352,40 @@ export default function ArticleDetail() {
     };
   }, [fontSize, lineHeight]);
 
+  if (!article) {
+    return (
+      <div className="min-h-screen bg-background">
+        <NewsHeader />
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-3xl mx-auto">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-8 transition-colors"
+            >
+              <ArrowLeft size={16} />
+              Zpět
+            </button>
+            <h1 className="headline-primary text-center">Článek nenalezen</h1>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const readingTimeLabel = formatReadingTimeLabel(
+    calculateReadingTime(articleBody)
+  );
+  const metaItems = [article.published, readingTimeLabel, article.author].filter(Boolean);
+  const metaLabel = metaItems.join(" • ");
+  const lastUpdatedLabel = new Date().toLocaleDateString('cs-CZ', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+  const totalPages = pages.length;
+  const pageHeight = Math.ceil(fontSize * lineHeight * paginationMetrics.linesPerPage);
+  const pageSliderMax = Math.max(DEFAULT_MAX_PAGES, effectivePageCount + 5);
+
   const handleFontSizeChange = (value: number[]) => {
     const next = value[0];
     if (typeof next === "number" && Number.isFinite(next)) {
@@ -321,14 +414,6 @@ export default function ArticleDetail() {
     setLineHeight(DEFAULT_LINE_HEIGHT);
     setPageCount(null);
   };
-
-  const handlePrev = () => carouselApi?.scrollPrev();
-  const handleNext = () => carouselApi?.scrollNext();
-
-  const prevDisabled = currentSlide === 0;
-  const nextDisabled = currentSlide >= totalSlides - 1;
-  const isLastSlide = currentSlide >= totalSlides - 1;
-  const showFinishButton = isLastSlide && hasReadingCheck && questionsCompleted;
 
   const completeNavigation = () => {
     if (exitTimeoutRef.current !== null) {
@@ -366,6 +451,10 @@ export default function ArticleDetail() {
     }
 
     completeNavigation();
+  };
+
+  const handleCarouselEnd = () => {
+    handleBackClick();
   };
 
   const containerClassNames = [
@@ -498,18 +587,22 @@ export default function ArticleDetail() {
               <div className="flex flex-1 min-h-0 flex-col overflow-hidden px-1 py-3 md:px-2">
                 <div ref={textContainerRef} className="flex flex-1 min-h-0 flex-col overflow-hidden">
                   <Carousel
+                    ref={carouselContainerRef}
                     className="flex h-full min-h-0 flex-1 flex-col"
+                    tabIndex={0}
+                    aria-label="Čtečka článku"
                     setApi={setCarouselApi}
                     opts={{ loop: false }}
+                    onReachEnd={handleCarouselEnd}
                   >
                     <CarouselContent className="h-full min-h-0 !ml-0">
-                      {Array.from({ length: totalSlides }).map((_, index) => {
-                        if (index < totalPages) {
-                          const page = pages[index];
-                          const pageText = page.replace(/\n+/g, " ").trim();
+                      {slides.map((slide, slideIndex) => {
+                        if (slide.type === "page" && typeof slide.index === "number") {
+                          const page = pages[slide.index];
+                          const pageText = (page ?? "").replace(/\n+/g, " ").trim();
 
                           return (
-                            <CarouselItem key={`page-${index}`} className="flex h-full min-h-0 !pl-0">
+                            <CarouselItem key={`page-${slide.index}`} className="flex h-full min-h-0 !pl-0">
                               <div className="flex h-full w-full min-h-0">
                                 <div
                                   className="flex h-full min-h-0 w-full flex-col rounded-md bg-white/80 px-1.5 py-3 md:px-3"
@@ -521,7 +614,7 @@ export default function ArticleDetail() {
                                   }}
                                 >
                                   <p
-                                    className="w-full pb-1 text-foreground"
+                                    className="w-full pb-1 text-foreground break-words"
                                     style={{ textAlign: "justify", textJustify: "inter-word" }}
                                   >
                                     {pageText}
@@ -532,21 +625,48 @@ export default function ArticleDetail() {
                           );
                         }
 
-                        return (
-                          <CarouselItem key="rating-slide" className="flex h-full min-h-0 !pl-0">
-                            <div className="flex h-full w-full items-start">
-                              <div className="w-full">
-                                <ArticleRating
-                                  articleId={article.id}
-                                  onRatingChange={(rating) => console.log("Article rated:", rating)}
-                                  showRating={allowRating}
-                                  questions={hasReadingCheck ? article.question : undefined}
-                                  onQuestionsCompletionChange={setQuestionsCompleted}
-                                />
+                        if (slide.type === "rating") {
+                          return (
+                            <CarouselItem key="rating-slide" className="flex h-full min-h-0 !pl-0">
+                              <div className="flex h-full w-full items-start">
+                                <div className="w-full">
+                                  <ArticleRating
+                                    articleId={article.id}
+                                    onRatingChange={(rating) => console.log("Article rated:", rating)}
+                                    showRating={allowRating}
+                                    active={currentSlide === slideIndex}
+                                  />
+                                </div>
                               </div>
-                            </div>
-                          </CarouselItem>
-                        );
+                            </CarouselItem>
+                          );
+                        }
+
+                        if (slide.type === "question" && typeof slide.index === "number") {
+                          const question = questionItems[slide.index];
+
+                          return (
+                            <CarouselItem key={`question-${slide.index}`} className="flex h-full min-h-0 !pl-0">
+                              <div className="flex h-full w-full items-start">
+                                <div className="w-full">
+                                  <QuestionSlide
+                                    question={question}
+                                    questionIndex={slide.index}
+                                    selectedAnswer={
+                                      typeof questionAnswers[slide.index] === "number"
+                                        ? questionAnswers[slide.index]
+                                        : null
+                                    }
+                                    onSelect={(answerIndex) => handleQuestionAnswer(slide.index, answerIndex)}
+                                    active={currentSlide === slideIndex}
+                                  />
+                                </div>
+                              </div>
+                            </CarouselItem>
+                          );
+                        }
+
+                        return null;
                       })}
                     </CarouselContent>
                   </Carousel>
@@ -554,41 +674,62 @@ export default function ArticleDetail() {
 
                 <div
                   ref={controlsRef}
-                  className="flex h-[64px] flex-none flex-col items-center justify-center gap-3 border-t border-separator/40 pt-3 md:h-[84px] md:flex-row md:justify-between"
+                  className="flex h-[72px] flex-none flex-col items-center justify-center gap-3 border-t border-separator/40 px-3 pt-3 md:h-[84px] md:flex-row md:items-center md:justify-between md:gap-6 md:px-4"
                 >
-                  <span className="text-sm text-muted-foreground">
-                    Strana {Math.min(currentSlide + 1, totalSlides)} / {totalSlides}
-                  </span>
-                  {totalSlides > 1 && (
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handlePrev}
-                        disabled={prevDisabled}
-                      >
-                        Předchozí
-                      </Button>
-                      {showFinishButton ? (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={handleBackClick}
-                        >
-                          Potvrdit
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleNext}
-                          disabled={nextDisabled}
-                        >
-                          Další
-                        </Button>
-                      )}
+                  <div className="flex flex-col items-center gap-2 md:flex-row md:items-center md:gap-3">
+                    <span className="text-sm text-muted-foreground">
+                      Strana {Math.min(currentSlide + 1, totalSlides)} / {totalSlides}
+                    </span>
+                    {totalSlides > 1 && (
+                      <div className="flex items-center gap-2">
+                        {slides.map((_, index) => (
+                          <span
+                            key={`progress-${index}`}
+                            className={cn(
+                              "block rounded-full transition-all",
+                              currentSlide === index
+                                ? "h-3.5 w-3.5 bg-primary"
+                                : "h-2 w-2 bg-muted-foreground/50"
+                            )}
+                            aria-hidden="true"
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex w-full flex-col items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground md:ml-auto md:flex-row md:justify-end md:gap-4 md:text-xs">
+                    {showQuestionHints && (
+                      <div className="flex items-center gap-1">
+                        {currentQuestionKeys.map((key) => (
+                          <kbd key={`question-hint-${key}`} className={KEYCAP_CLASS}>
+                            {key}
+                          </kbd>
+                        ))}
+                        <span className="normal-case text-[12px] font-medium md:text-[13px]">
+                          pro odpověď
+                        </span>
+                      </div>
+                    )}
+                    {showRatingHints && (
+                      <div className="flex items-center gap-1">
+                        {RATING_SHORTCUTS.map(({ key }) => (
+                          <kbd key={`rating-hint-${key}`} className={KEYCAP_CLASS}>
+                            {key}
+                          </kbd>
+                        ))}
+                        <span className="normal-case text-[12px] font-medium md:text-[13px]">
+                          pro odpověď
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1">
+                      <kbd className={KEYCAP_CLASS}>→</kbd>
+                      <span className="normal-case text-[12px] font-medium md:text-[13px]">
+                        pro pokračování
+                      </span>
                     </div>
-                  )}
+                  </div>
+                  <div className="flex w-full justify-center md:w-auto md:justify-end" />
                 </div>
               </div>
             </article>
