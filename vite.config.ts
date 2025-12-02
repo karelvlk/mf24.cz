@@ -126,6 +126,9 @@ export default defineConfig(({ mode }) => {
       host: "::",
       port: 8080,
     },
+    preview: {
+      allowedHosts: ["quest.ms.mff.cuni.cz"],
+    },
     plugins: [
       react(),
       saveAnnotationsPlugin(),
