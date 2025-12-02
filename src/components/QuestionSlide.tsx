@@ -56,7 +56,12 @@ export default function QuestionSlide({
   }
 
   return (
-    <div className="flex h-full w-full flex-col gap-4 rounded-lg border border-separator/40 bg-white/80 px-5 py-4 md:px-8 md:py-6">
+    <div
+      className="flex h-full w-full flex-col gap-4 rounded-lg border border-separator/40 bg-white/80 px-5 py-4 md:px-8 md:py-6"
+      data-question-index={questionIndex}
+      data-question-active={active}
+      data-answer-count={question.answers.length}
+    >
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
           <span>Otázka {questionIndex + 1}</span>
@@ -95,6 +100,8 @@ export default function QuestionSlide({
                 isSelected && "ring-2 ring-offset-2"
               )}
               onClick={() => onSelect(answerIndex)}
+              data-answer-index={answerIndex}
+              data-answer-selected={isSelected}
             >
               {answerKey && (
                 <kbd className="rounded-md border border-border bg-background px-2 py-1 text-xs font-semibold uppercase text-foreground shadow-sm">

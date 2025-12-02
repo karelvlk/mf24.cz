@@ -1,73 +1,112 @@
-# Welcome to your Lovable project
+# Deziper (MF24.cz)
 
-## Project info
+Deziper is a specialized news reading platform designed for experimental and annotation purposes. It mimics a standard news website to conduct reading experiments and collect annotations regarding article credibility and manipulativeness.
 
-**URL**: https://lovable.dev/projects/00d3a1e7-225d-4476-ab22-db994733fc90
+## Features
 
-## How can I edit this code?
+- **News Interface**: A realistic news website layout with categories (Home, World, Health, Nature).
+- **Article Reader**: A focused reading view with a carousel interface, adjustable font size, and line height.
+- **Experiment Mode**: A controlled environment where participants read a specific sequence of articles.
+- **Annotation Mode**: A dedicated interface for annotators to evaluate articles based on credibility and manipulativeness.
+- **Data Collection**: Automatically saves user interactions, answers to questions, ratings, and reading times.
 
-There are several ways of editing your application.
+## Tech Stack
 
-**Use Lovable**
+- **Framework**: [React](https://react.dev/) with [Vite](https://vitejs.dev/)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **UI Components**: [shadcn/ui](https://ui.shadcn.com/)
+- **Runtime/Package Manager**: [Bun](https://bun.sh/)
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/00d3a1e7-225d-4476-ab22-db994733fc90) and start prompting.
+## Getting Started
 
-Changes made via Lovable will be committed automatically to this repo.
+### Prerequisites
 
-**Use your preferred IDE**
+- [Bun](https://bun.sh/) (v1.0 or later) installed on your machine.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Installation
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd mf24.cz
+   ```
 
-Follow these steps:
+2. Install dependencies:
+   ```bash
+   bun install
+   ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### Running Locally
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Start the development server:
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+bun run dev
 ```
 
-**Edit a file directly in GitHub**
+The application will be available at `http://localhost:8080`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+To enable the **Experiment Mode** button on the home screen locally, run:
 
-**Use GitHub Codespaces**
+```bash
+ENV_NAME=experiment bun run dev
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Deployment
 
-## What technologies are used for this project?
+The application requires a server-side component to handle data saving (implemented via Vite middleware). Therefore, it cannot be hosted on static hosting services (like GitHub Pages or Netlify) without a backend.
 
-This project is built with:
+### Using Docker (Recommended)
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+We provide scripts to easily package and run the application using Docker.
 
-## How can I deploy this project?
+1.  **Build and Package** (on your development machine):
+    ```bash
+    ./package-app.sh
+    ```
+    This creates a `mf24-app.tar` file containing the Docker image (built for linux/amd64).
 
-Simply open [Lovable](https://lovable.dev/projects/00d3a1e7-225d-4476-ab22-db994733fc90) and click on Share -> Publish.
+2.  **Run** (on the target server):
+    Transfer `mf24-app.tar` and `run-app.sh` to your server and run:
+    ```bash
+    ./run-app.sh
+    ```
+    The application will start on port `8080`.
 
-## Can I connect a custom domain to my Lovable project?
+### Manual Deployment
 
-Yes, you can!
+If you prefer running it directly with Bun on a server:
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+1.  Build the application:
+    ```bash
+    bun run build
+    ```
+2.  Run the preview server (which handles the API):
+    ```bash
+    ENV_NAME=experiment bun run preview -- --host 0.0.0.0 --port 8080
+    ```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## Data Storage
+
+All annotations and experiment data are stored in a JSON file located at:
+
+```
+data-records/annotations.json
+```
+
+This file is automatically created when the first data is saved.
+- **Docker**: The `data-records` folder is mounted as a volume, so data persists even if the container is removed.
+- **Local/Manual**: The folder is created in the project root.
+
+## Environment Variables
+
+- `ENV_NAME`: Set to `experiment` to enable the "Experiment" button on the home screen. If not set, only "Annotate" mode is available.
+
+## Project Structure
+
+- `src/pages`: Main application pages (Index, ArticleDetail, etc.).
+- `src/components`: Reusable UI components.
+- `src/data`: Static news data.
+- `src/context`: React contexts for managing experiment state.
+- `vite.config.ts`: Vite configuration including the **middleware for saving data**.

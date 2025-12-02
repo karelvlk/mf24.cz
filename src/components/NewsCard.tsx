@@ -56,6 +56,10 @@ export default function NewsCard({
   if (variant === 'minimal') {
     return (
       <article
+        data-article-id={article.id}
+        data-card-variant="minimal"
+        data-card-interactive={!disabled}
+        data-card-muted={muted}
         onClick={handleClick}
         aria-disabled={disabled}
         className={cn(

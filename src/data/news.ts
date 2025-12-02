@@ -671,12 +671,24 @@ const shuffleArray = <T>(array: T[]): T[] => {
   return shuffled;
 };
 
+const isScreenshotModeBootstrap =
+  (typeof window !== "undefined" &&
+    typeof window.location?.search === "string" &&
+    new URLSearchParams(window.location.search).get("screenshot") !== null &&
+    new URLSearchParams(window.location.search).get("screenshot")?.toLowerCase() !== "false" &&
+    new URLSearchParams(window.location.search).get("screenshot")?.toLowerCase() !== "0") ||
+  (typeof import.meta !== "undefined" &&
+    typeof import.meta.env?.VITE_SCREENSHOT_MODE === "string" &&
+    import.meta.env.VITE_SCREENSHOT_MODE.toLowerCase() === "true");
+
+const stabilizeArray = <T>(array: T[]): T[] => (isScreenshotModeBootstrap ? [...array] : shuffleArray(array));
+
 export const newsData: Record<string, NewsArticle[]> = {
-  zdravi: shuffleArray(rawNewsData.zdravi),
-  priroda: shuffleArray(rawNewsData.priroda),
-  "ceska-politika": shuffleArray(rawNewsData["ceska-politika"]),
-  "zahranicni-politika": shuffleArray(rawNewsData["zahranicni-politika"]),
-  pohady: shuffleArray(rawNewsData.pohady),
+  zdravi: stabilizeArray(rawNewsData.zdravi),
+  priroda: stabilizeArray(rawNewsData.priroda),
+  "ceska-politika": stabilizeArray(rawNewsData["ceska-politika"]),
+  "zahranicni-politika": stabilizeArray(rawNewsData["zahranicni-politika"]),
+  pohady: stabilizeArray(rawNewsData.pohady),
 };
 
 // Empty/meaningless filler content for slow news days (no questions)

@@ -1,8 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { newsData, getEmptyFillerArticles, type NewsArticle } from "@/data/news";
-import NewsHeader from "@/components/NewsHeader";
 import NewsCard from "@/components/NewsCard";
-import { Input } from "@/components/ui/input";
+import NewsHeader from "@/components/NewsHeader";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,24 +10,30 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useExperimentMode } from "@/context/ExperimentModeContext";
+import { getEmptyFillerArticles, newsData, type NewsArticle } from "@/data/news";
 import { FlaskConical } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 const Index = () => {
   const {
     isActive,
+    mode,
     participantId,
     articleOrder,
     remainingArticleIds,
     currentArticleId,
     startExperiment,
+    startAnnotation,
     endExperiment,
   } = useExperimentMode();
 
   const [participantInput, setParticipantInput] = useState(participantId);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [startPositionInput, setStartPositionInput] = useState("1");
+  const [selectedMode, setSelectedMode] = useState<'none' | 'annotate' | 'experiment'>('none');
 
   useEffect(() => {
     setParticipantInput(participantId);
@@ -59,10 +62,16 @@ const Index = () => {
       return allArticles;
     }
 
-    return remainingArticleIds
+    const remaining = remainingArticleIds
       .map((id) => articleDictionary.get(id))
       .filter((article): article is NewsArticle => Boolean(article));
-  }, [allArticles, articleDictionary, isActive, remainingArticleIds]);
+
+    if (mode === 'annotate' && remaining.length > 0) {
+      return [remaining[0]];
+    }
+
+    return remaining;
+  }, [allArticles, articleDictionary, isActive, remainingArticleIds, mode]);
 
   const totalArticles = allArticles.length;
   const parsedStartPosition = Number.parseInt(startPositionInput, 10);
@@ -96,9 +105,23 @@ const Index = () => {
     setIsConfigOpen(false);
   };
 
+  const handleStartAnnotation = () => {
+    const trimmedId = participantInput.trim();
+    if (!trimmedId || totalArticles === 0) {
+      return;
+    }
+
+    // Static order for annotation - sort by ID to be deterministic
+    const orderedIds = allArticles
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map((article) => article.id);
+
+    startAnnotation(trimmedId, orderedIds);
+  };
+
   const handleExitExperiment = () => {
     endExperiment();
-    setIsConfigOpen(false);
+    setSelectedMode('none');
   };
 
   useEffect(() => {
@@ -135,6 +158,65 @@ const Index = () => {
       document.body.style.overflow = previousOverflow;
     };
   }, [isActive]);
+
+  if (!isActive && selectedMode === 'none') {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-background p-4 text-center">
+        <div className="space-y-4">
+          <h1 className="text-6xl font-bold tracking-tight text-primary">DEZIPER</h1>
+          <p className="text-xl text-muted-foreground">
+            Děkujeme za Váš čas, poskytnuté anotace a zpětnou vazbu.
+          </p>
+        </div>
+
+        <div className="flex gap-4 mt-4">
+          <Button
+            size="lg"
+            className="h-32 w-64 text-2xl"
+            onClick={() => setSelectedMode('annotate')}
+          >
+            Anotovat
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="h-32 w-64 text-2xl"
+            onClick={() => setSelectedMode('experiment')}
+            disabled={import.meta.env.ENV_NAME !== 'experiment'}
+          >
+            Experiment
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isActive && selectedMode === 'annotate') {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-background p-4">
+        <div className="flex w-full max-w-md flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold">Anotace</h1>
+            <Button variant="ghost" onClick={() => setSelectedMode('none')}>Zpět</Button>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="annotator-name">Jméno anotátora</Label>
+            <Input
+              id="annotator-name"
+              value={participantInput}
+              onChange={(e) => setParticipantInput(e.target.value)}
+              placeholder="Zadejte jméno..."
+            />
+          </div>
+
+          <Button onClick={handleStartAnnotation} disabled={!participantInput.trim()}>
+            Začít anotovat
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -175,7 +257,7 @@ const Index = () => {
       </main>
 
       <Dialog open={isConfigOpen} onOpenChange={setIsConfigOpen}>
-        <div className="fixed bottom-4 left-4 z-50">
+        <div className="fixed bottom-4 left-4 z-50 flex items-center gap-4">
           <DialogTrigger asChild>
             <Button
               type="button"
@@ -187,6 +269,20 @@ const Index = () => {
               <span className="sr-only">Otevřít nastavení experimentu</span>
             </Button>
           </DialogTrigger>
+          {mode === 'annotate' && (
+            <div className="flex items-center gap-3 rounded-full border border-separator bg-white/90 px-4 py-2 shadow-lg backdrop-blur-sm">
+              <span className="text-sm font-medium text-foreground">
+                {participantId}
+              </span>
+              <div className="h-4 w-px bg-border" />
+              <button
+                onClick={handleExitExperiment}
+                className="text-xs font-medium text-muted-foreground hover:text-destructive transition-colors"
+              >
+                Odhlásit
+              </button>
+            </div>
+          )}
         </div>
 
         {isActive ? (

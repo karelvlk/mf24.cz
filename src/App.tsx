@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import CategoryPage from "./pages/CategoryPage";
 import ArticleDetail from "./pages/ArticleDetail";
+import { ScreenshotModeProvider } from "@/context/ScreenshotModeContext";
 
 const queryClient = new QueryClient();
 
@@ -18,12 +19,14 @@ const App = () => (
       <Sonner />
       <ExperimentModeProvider>
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/article/:id" element={<ArticleDetail />} />
-            <Route path="/:category" element={<CategoryPage />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <ScreenshotModeProvider>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/article/:id" element={<ArticleDetail />} />
+              <Route path="/:category" element={<CategoryPage />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </ScreenshotModeProvider>
         </BrowserRouter>
       </ExperimentModeProvider>
     </TooltipProvider>

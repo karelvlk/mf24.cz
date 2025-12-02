@@ -1,3 +1,4 @@
+import AnnotationSlide from "@/components/AnnotationSlide";
 import ArticleRating, { RATING_SHORTCUTS } from "@/components/ArticleRating";
 import NewsHeader from "@/components/NewsHeader";
 import QuestionSlide from "@/components/QuestionSlide";
@@ -20,7 +21,9 @@ import {
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { useExperimentMode } from "@/context/ExperimentModeContext";
+import { useScreenshotMode } from "@/context/ScreenshotModeContext";
 import { emptyFillerArticles, newsData } from "@/data/news";
+import { useToast } from "@/hooks/use-toast";
 import {
   calculateReadingTime,
   cn,
@@ -51,7 +54,9 @@ const DEFAULT_MAX_PAGES = 10;
 type SlideDescriptor =
   | { type: "page"; index: number }
   | { type: "rating" }
-  | { type: "question"; index: number };
+  | { type: "question"; index: number }
+  | { type: "annotation-credibility" }
+  | { type: "annotation-manipulativeness" };
 
 const KEYCAP_CLASS =
   "rounded-md border border-border bg-muted/40 px-1.5 py-[2px] text-[11px] font-semibold uppercase tracking-wide text-foreground shadow-sm";
@@ -59,7 +64,9 @@ const KEYCAP_CLASS =
 export default function ArticleDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isActive: experimentActive, markArticleVisited } = useExperimentMode();
+  const { toast } = useToast();
+  const { isActive: experimentActive, markArticleVisited, mode, saveAnnotation, participantId, endExperiment } = useExperimentMode();
+  const screenshotMode = useScreenshotMode();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [fontSize, setFontSize] = useState(DEFAULT_FONT_SIZE);
   const [lineHeight, setLineHeight] = useState(DEFAULT_LINE_HEIGHT);
@@ -77,6 +84,9 @@ export default function ArticleDetail() {
     linesPerPage: DEFAULT_LINES_PER_PAGE
   });
   const [questionAnswers, setQuestionAnswers] = useState<number[]>([]);
+  const [annotationAnswers, setAnnotationAnswers] = useState<{ credibility?: number; manipulativeness?: number; firstPageReadTime?: number }>({});
+  const startTimeRef = useRef<number>(Date.now());
+  const firstPageReadTimeCapturedRef = useRef<boolean>(false);
 
   // Find article in all categories
   const allArticles = [
@@ -91,8 +101,11 @@ export default function ArticleDetail() {
       return;
     }
 
-    markArticleVisited(article.id);
-  }, [article, experimentActive, markArticleVisited]);
+    if (mode !== 'annotate') {
+      markArticleVisited(article.id);
+    }
+  }, [article, experimentActive, markArticleVisited, mode]);
+
 
   const articleContent = article?.content ?? "";
   const articlePerex = article?.perex ?? "";
@@ -138,20 +151,98 @@ export default function ArticleDetail() {
       index
     }));
 
-    if (allowRating) {
-      computedSlides.push({ type: "rating" });
+    if (mode === 'annotate') {
+      computedSlides.push(
+        { type: "annotation-credibility" },
+        { type: "annotation-manipulativeness" }
+      );
+    } else {
+      if (allowRating) {
+        computedSlides.push({ type: "rating" });
+      }
+
+      questionItems.forEach((_, index) => {
+        computedSlides.push({ type: "question", index });
+      });
     }
 
-    questionItems.forEach((_, index) => {
-      computedSlides.push({ type: "question", index });
-    });
-
     return computedSlides;
-  }, [allowRating, pages, questionItems]);
+  }, [allowRating, pages, questionItems, mode]);
   const totalSlides = slides.length;
+
+  const validateSlideNavigation = useCallback(() => {
+    const currentSlideDesc = slides[currentSlide];
+    if (!currentSlideDesc) return true;
+
+    if (mode === 'annotate') {
+      if (currentSlideDesc.type === 'annotation-credibility' && !annotationAnswers.credibility) {
+        toast({
+          title: "Chybí hodnocení",
+          description: "Prosím ohodnoťte věrohodnost článku před pokračováním.",
+          variant: "destructive",
+        });
+        return false;
+      }
+      if (currentSlideDesc.type === 'annotation-manipulativeness' && !annotationAnswers.manipulativeness) {
+        toast({
+          title: "Chybí hodnocení",
+          description: "Prosím ohodnoťte manipulativnost článku před pokračováním.",
+          variant: "destructive",
+        });
+        return false;
+      }
+    }
+    return true;
+  }, [slides, currentSlide, mode, annotationAnswers, toast]);
+
+  const handleNext = useCallback(() => {
+    if (!validateSlideNavigation()) return;
+
+    const currentSlideDesc = slides[currentSlide];
+    // Handle Finish
+    if (mode === 'annotate' && currentSlideDesc?.type === 'annotation-manipulativeness' && annotationAnswers.manipulativeness) {
+        saveAnnotation(article.id, annotationAnswers);
+        markArticleVisited(article.id);
+        navigate('/');
+        return;
+    }
+
+    if (carouselApi) {
+      carouselApi.scrollNext();
+    }
+  }, [validateSlideNavigation, carouselApi, slides, currentSlide, mode, annotationAnswers, article, saveAnnotation, markArticleVisited, navigate]);
+
+  const handlePrev = useCallback(() => {
+    if (carouselApi) {
+      carouselApi.scrollPrev();
+    }
+  }, [carouselApi]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        e.stopPropagation();
+        handleNext();
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        e.stopPropagation();
+        handlePrev();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
+  }, [handleNext, handlePrev]);
+
   const [questionsCompleted, setQuestionsCompleted] = useState(!hasReadingCheck);
 
   useEffect(() => {
+    if (screenshotMode) {
+      setShouldReduceMotion(true);
+      setAnimationState("idle");
+      return;
+    }
+
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
       return;
     }
@@ -174,10 +265,10 @@ export default function ArticleDetail() {
     return () => {
       motionQuery.removeListener(handleChange);
     };
-  }, []);
+  }, [screenshotMode]);
 
   useEffect(() => {
-    if (shouldReduceMotion) {
+    if (screenshotMode || shouldReduceMotion) {
       setAnimationState("idle");
       return;
     }
@@ -193,7 +284,7 @@ export default function ArticleDetail() {
     return () => {
       window.cancelAnimationFrame(frame);
     };
-  }, [shouldReduceMotion]);
+  }, [shouldReduceMotion, screenshotMode]);
 
   useEffect(() => {
     return () => {
@@ -352,6 +443,14 @@ export default function ArticleDetail() {
     };
   }, [fontSize, lineHeight]);
 
+  useEffect(() => {
+    if (currentSlide > 0 && !firstPageReadTimeCapturedRef.current) {
+      const duration = Date.now() - startTimeRef.current;
+      firstPageReadTimeCapturedRef.current = true;
+      setAnnotationAnswers(prev => ({ ...prev, firstPageReadTime: duration }));
+    }
+  }, [currentSlide]);
+
   if (!article) {
     return (
       <div className="min-h-screen bg-background">
@@ -424,6 +523,12 @@ export default function ArticleDetail() {
   };
 
   const handleBackClick = () => {
+    if (screenshotMode) {
+      setIsSettingsOpen(false);
+      completeNavigation();
+      return;
+    }
+
     if (animationState === "exit" || exitTimeoutRef.current !== null) {
       return;
     }
@@ -491,6 +596,23 @@ export default function ArticleDetail() {
               <span className="sr-only">Otevřít nastavení čtečky</span>
             </Button>
           </DialogTrigger>
+          {mode === 'annotate' && (
+            <div className="fixed bottom-6 left-20 z-20 flex items-center gap-3 rounded-full border border-separator bg-white/90 px-4 py-2 shadow-sm backdrop-blur-sm">
+              <span className="text-sm font-medium text-foreground">
+                {participantId}
+              </span>
+              <div className="h-4 w-px bg-border" />
+              <button
+                onClick={() => {
+                  endExperiment();
+                  navigate('/');
+                }}
+                className="text-xs font-medium text-muted-foreground hover:text-destructive transition-colors"
+              >
+                Odhlásit
+              </button>
+            </div>
+          )}
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Nastavení čtečky</DialogTitle>
@@ -592,17 +714,30 @@ export default function ArticleDetail() {
                     tabIndex={0}
                     aria-label="Čtečka článku"
                     setApi={setCarouselApi}
-                    opts={{ loop: false }}
+                    data-screenshot-mode={screenshotMode ? "true" : "false"}
+                    opts={{
+                      loop: false,
+                      ...(screenshotMode ? { duration: 0, speed: 0 } : {})
+                    }}
                     onReachEnd={handleCarouselEnd}
                   >
                     <CarouselContent className="h-full min-h-0 !ml-0">
                       {slides.map((slide, slideIndex) => {
+                        const isActiveSlide = currentSlide === slideIndex;
+
                         if (slide.type === "page" && typeof slide.index === "number") {
                           const page = pages[slide.index];
                           const pageText = (page ?? "").replace(/\n+/g, " ").trim();
 
                           return (
-                            <CarouselItem key={`page-${slide.index}`} className="flex h-full min-h-0 !pl-0">
+                            <CarouselItem
+                              key={`page-${slide.index}`}
+                              className="flex h-full min-h-0 !pl-0"
+                              data-slide-type="page"
+                              data-slide-position={slideIndex}
+                              data-slide-index={slide.index}
+                              data-slide-active={isActiveSlide}
+                            >
                               <div className="flex h-full w-full min-h-0">
                                 <div
                                   className="flex h-full min-h-0 w-full flex-col rounded-md bg-white/80 px-1.5 py-3 md:px-3"
@@ -627,7 +762,13 @@ export default function ArticleDetail() {
 
                         if (slide.type === "rating") {
                           return (
-                            <CarouselItem key="rating-slide" className="flex h-full min-h-0 !pl-0">
+                            <CarouselItem
+                              key="rating-slide"
+                              className="flex h-full min-h-0 !pl-0"
+                              data-slide-type="rating"
+                              data-slide-position={slideIndex}
+                              data-slide-active={isActiveSlide}
+                            >
                               <div className="flex h-full w-full items-start">
                                 <div className="w-full">
                                   <ArticleRating
@@ -646,7 +787,15 @@ export default function ArticleDetail() {
                           const question = questionItems[slide.index];
 
                           return (
-                            <CarouselItem key={`question-${slide.index}`} className="flex h-full min-h-0 !pl-0">
+                            <CarouselItem
+                              key={`question-${slide.index}`}
+                              className="flex h-full min-h-0 !pl-0"
+                              data-slide-type="question"
+                              data-slide-position={slideIndex}
+                              data-question-index={slide.index}
+                              data-answer-count={question?.answers?.length ?? 0}
+                              data-slide-active={isActiveSlide}
+                            >
                               <div className="flex h-full w-full items-start">
                                 <div className="w-full">
                                   <QuestionSlide
@@ -659,6 +808,46 @@ export default function ArticleDetail() {
                                     }
                                     onSelect={(answerIndex) => handleQuestionAnswer(slide.index, answerIndex)}
                                     active={currentSlide === slideIndex}
+                                  />
+                                </div>
+                              </div>
+                            </CarouselItem>
+                          );
+                        }
+
+                        if (slide.type === "annotation-credibility") {
+                          return (
+                            <CarouselItem
+                              key="annotation-credibility"
+                              className="flex h-full min-h-0 !pl-0"
+                            >
+                              <div className="flex h-full w-full items-start">
+                                <div className="w-full">
+                                  <AnnotationSlide
+                                    question="Ohodnoťte věrohodnost článku"
+                                    value={annotationAnswers.credibility}
+                                    onChange={(value) => setAnnotationAnswers(prev => ({ ...prev, credibility: value }))}
+                                    labels={{ 1: "Nevěrohodný", 7: "Věrohodný" }}
+                                  />
+                                </div>
+                              </div>
+                            </CarouselItem>
+                          );
+                        }
+
+                        if (slide.type === "annotation-manipulativeness") {
+                          return (
+                            <CarouselItem
+                              key="annotation-manipulativeness"
+                              className="flex h-full min-h-0 !pl-0"
+                            >
+                              <div className="flex h-full w-full items-start">
+                                <div className="w-full">
+                                  <AnnotationSlide
+                                    question="Ohodnoťte manipulativnost článku"
+                                    value={annotationAnswers.manipulativeness}
+                                    onChange={(value) => setAnnotationAnswers(prev => ({ ...prev, manipulativeness: value }))}
+                                    labels={{ 1: "Nemanipulativní", 7: "Manipulativní" }}
                                   />
                                 </div>
                               </div>
@@ -722,12 +911,26 @@ export default function ArticleDetail() {
                         </span>
                       </div>
                     )}
-                    <div className="flex items-center gap-1">
+                    <button
+                      onClick={handlePrev}
+                      className="flex items-center gap-1 hover:text-foreground transition-colors"
+                      type="button"
+                    >
+                      <kbd className={KEYCAP_CLASS}>←</kbd>
+                      <span className="normal-case text-[12px] font-medium md:text-[13px]">
+                        pro návrat
+                      </span>
+                    </button>
+                    <button
+                      onClick={handleNext}
+                      className="flex items-center gap-1 hover:text-foreground transition-colors"
+                      type="button"
+                    >
                       <kbd className={KEYCAP_CLASS}>→</kbd>
                       <span className="normal-case text-[12px] font-medium md:text-[13px]">
                         pro pokračování
                       </span>
-                    </div>
+                    </button>
                   </div>
                   <div className="flex w-full justify-center md:w-auto md:justify-end" />
                 </div>

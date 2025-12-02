@@ -212,6 +212,19 @@
   }
 }
 
+body.screenshot-mode *,
+body[data-screenshot-mode="true"] *,
+body.screenshot-mode *::before,
+body.screenshot-mode *::after,
+body[data-screenshot-mode="true"] *::before,
+body[data-screenshot-mode="true"] *::after {
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+  scroll-behavior: auto !important;
+}
+
 @layer components {
   .article-detail-motion {
     will-change: opacity, transform;
