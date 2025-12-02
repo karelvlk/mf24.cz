@@ -126,9 +126,11 @@ export default defineConfig(({ mode }) => {
     server: {
       host: "::",
       port: 8080,
+      https: false,
     },
     preview: {
       allowedHosts: ["quest.ms.mff.cuni.cz"],
+      https: false,
     },
     plugins: [
       react(),
