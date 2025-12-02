@@ -8,7 +8,7 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview",
+    "preview": "vite preview --base /",
     "capture:experiment": "node scripts/capture-experiment.mjs"
   },
   "dependencies": {
