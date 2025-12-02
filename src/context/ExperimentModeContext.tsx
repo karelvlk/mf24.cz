@@ -53,7 +53,7 @@ export function ExperimentModeProvider({ children }: { children: ReactNode }) {
       if (existingResults) {
         const results = JSON.parse(existingResults);
         if (results.length > 0) {
-          await fetch('/api/save-annotation', {
+          await fetch(`${import.meta.env.BASE_URL}api/save-annotation`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(results),
@@ -68,7 +68,7 @@ export function ExperimentModeProvider({ children }: { children: ReactNode }) {
 
     // Fetch server-side annotations to update visited list
     try {
-      const response = await fetch('/api/save-annotation');
+      const response = await fetch(`${import.meta.env.BASE_URL}api/save-annotation`);
       if (response.ok) {
         const serverAnnotations = await response.json();
         if (Array.isArray(serverAnnotations)) {
@@ -137,7 +137,7 @@ export function ExperimentModeProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('annotation_results', JSON.stringify(results));
 
     // Save to local server (handled by Vite middleware)
-    fetch('/api/save-annotation', {
+    fetch(`${import.meta.env.BASE_URL}api/save-annotation`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
