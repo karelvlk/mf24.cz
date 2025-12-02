@@ -119,7 +119,7 @@ const saveAnnotationsPlugin = () => ({
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   return {
-    base: "/deziper",
+    base: "/deziper/",
     define: {
       "import.meta.env.ENV_NAME": JSON.stringify(env.ENV_NAME),
     },
