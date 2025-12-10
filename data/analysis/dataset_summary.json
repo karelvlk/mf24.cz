@@ -1,0 +1,11 @@
+{
+  "avg_character_length": 601.6521739130435,
+  "avg_word_count": 91.1304347826087,
+  "avg_mean_word_length": 5.509595410165337,
+  "avg_freq_coverage_ratio": 0.9746197934812735,
+  "avg_freq_mean": 1983.720895416703,
+  "avg_conc_coverage_ratio": null,
+  "avg_conc_mean": null,
+  "avg_surprisal_mean_nats": 2.005817491397267,
+  "avg_surprisal_mean_bits": 2.8937829477671784
+}

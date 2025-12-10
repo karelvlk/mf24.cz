@@ -2,13 +2,13 @@ import NewsCard from "@/components/NewsCard";
 import NewsHeader from "@/components/NewsHeader";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,8 +16,10 @@ import { useExperimentMode } from "@/context/ExperimentModeContext";
 import { getEmptyFillerArticles, newsData, type NewsArticle } from "@/data/news";
 import { FlaskConical } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
+  const navigate = useNavigate();
   const {
     isActive,
     mode,
@@ -185,6 +187,14 @@ const Index = () => {
             disabled={import.meta.env.ENV_NAME !== 'experiment'}
           >
             Experiment
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="h-32 w-64 text-2xl"
+            onClick={() => navigate('/analysis')}
+          >
+            Analýza
           </Button>
         </div>
       </div>
