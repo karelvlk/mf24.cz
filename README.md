@@ -103,6 +103,21 @@ This file is automatically created when the first data is saved.
 
 - `ENV_NAME`: Set to `experiment` to enable the "Experiment" button on the home screen. If not set, only "Annotate" mode is available.
 
+## Screenshot & Debug Scripts
+
+- Capture full experiment screenshots (1920×1080) with per-word/letter bounding boxes:
+  ```bash
+  npm run capture:screenshots -- --articles 3   # omit --articles to process all
+  ```
+  Output: `screenshots/experiment-run/run-<timestamp>/article-<id>/{images,meta}/...`
+  where PNGs live in `images/` and matching JSON bbox data in `meta/`.
+
+- Render debug overlays from an article directory (requires `npm install` to ensure `sharp` is available):
+  ```bash
+  npm run debug:bboxes -- screenshots/experiment-run/run-<timestamp>/article-<id>
+  ```
+  Output: `debug/*.debug.png` inside that article folder, showing word (blue) and letter (orange) boxes.
+
 ## Project Structure
 
 - `src/pages`: Main application pages (Index, ArticleDetail, etc.).

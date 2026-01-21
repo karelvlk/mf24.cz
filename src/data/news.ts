@@ -367,20 +367,175 @@ export const defaultNewsData: Record<string, NewsArticle[]> = {
   ],
 };
 
-// Load articles from JSON if available
-const articlesGlob = import.meta.glob("../../data/articles.json", {
+type CsvRow = {
+  index: string;
+  pseudotitle?: string;
+  title?: string;
+  source?: string;
+  content?: string;
+  question?: string;
+  answer?: string;
+  theme?: string;
+  manip?: string;
+  dezinfo?: string;
+  is_invalid?: string;
+};
+
+const parseBoolean = (value?: string): boolean =>
+  typeof value === "string" &&
+  ["true", "1", "yes", "ano"].includes(value.trim().toLowerCase());
+
+const CATEGORY_MAP: Record<string, NewsArticle["category"]> = {
+  priroda: "priroda",
+  zdravi: "zdravi",
+  "domaci-politika": "ceska-politika",
+  "ceska-politika": "ceska-politika",
+  "svetova-politika": "zahranicni-politika",
+  "zahranicni-politika": "zahranicni-politika",
+};
+
+const normalizeCategory = (category?: string): NewsArticle["category"] =>
+  CATEGORY_MAP[category?.trim().toLowerCase() ?? ""] ?? "pohady";
+
+const randomTimestamp = (): string => {
+  const hour = Math.floor(Math.random() * 24);
+  const minute = Math.floor(Math.random() * 60);
+  return `${hour}:${minute.toString().padStart(2, "0")}`;
+};
+
+const AUTHORS = ["DEZIPER", "Redakce", "Anonymní zdroj", "Externí autor"];
+const pickRandomAuthor = (): string =>
+  AUTHORS[Math.floor(Math.random() * AUTHORS.length)];
+
+const parseCsv = (csvText: string): string[][] => {
+  const rows: string[][] = [];
+  let currentRow: string[] = [];
+  let currentValue = "";
+  let inQuotes = false;
+
+  const pushValue = () => {
+    currentRow.push(currentValue);
+    currentValue = "";
+  };
+
+  for (let i = 0; i < csvText.length; i++) {
+    const char = csvText[i];
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (csvText[i + 1] === '"') {
+          currentValue += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        currentValue += char;
+      }
+    } else if (char === '"') {
+      inQuotes = true;
+    } else if (char === ",") {
+      pushValue();
+    } else if (char === "\n") {
+      pushValue();
+      rows.push(currentRow);
+      currentRow = [];
+    } else if (char !== "\r") {
+      currentValue += char;
+    }
+  }
+
+  // Push the last value/row if necessary
+  if (inQuotes === false && (currentValue || currentRow.length > 0)) {
+    pushValue();
+    rows.push(currentRow);
+  }
+
+  // Remove trailing empty row if present
+  if (
+    rows.length &&
+    rows[rows.length - 1].length === 1 &&
+    rows[rows.length - 1][0].trim() === ""
+  ) {
+    rows.pop();
+  }
+
+  return rows;
+};
+
+const csvToRows = (csvText?: string): CsvRow[] => {
+  if (!csvText) return [];
+  const table = parseCsv(csvText);
+  if (!table.length) return [];
+
+  const header = table[0].map((h) => h.trim().toLowerCase());
+  const getIdx = (name: string) => header.indexOf(name);
+
+  const idxIndex = getIdx("index");
+  const idxPseudotitle = getIdx("pseudotitle");
+  const idxTitle = getIdx("title");
+  const idxSource = getIdx("source");
+  const idxContent = getIdx("content");
+  const idxQuestion = getIdx("question");
+  const idxAnswer = getIdx("answer");
+  const idxTheme = getIdx("theme");
+  const idxManip = getIdx("manip");
+  const idxDezinfo = getIdx("dezinfo");
+  const idxInvalid = getIdx("is_invalid");
+
+  return table.slice(1).map((row) => ({
+    index: row[idxIndex] ?? "",
+    pseudotitle: idxPseudotitle === -1 ? undefined : row[idxPseudotitle],
+    title: idxTitle === -1 ? undefined : row[idxTitle],
+    source: idxSource === -1 ? undefined : row[idxSource],
+    content: idxContent === -1 ? undefined : row[idxContent],
+    question: idxQuestion === -1 ? undefined : row[idxQuestion],
+    answer: idxAnswer === -1 ? undefined : row[idxAnswer],
+    theme: idxTheme === -1 ? undefined : row[idxTheme],
+    manip: idxManip === -1 ? undefined : row[idxManip],
+    dezinfo: idxDezinfo === -1 ? undefined : row[idxDezinfo],
+    is_invalid: idxInvalid === -1 ? undefined : row[idxInvalid],
+  }));
+};
+
+const mapCsvToArticles = (rows: CsvRow[]): NewsArticle[] =>
+  rows.map((row, idx) => {
+    const yesIsCorrect = parseBoolean(row.answer);
+
+    return {
+      id: row.index || `${idx + 1}`,
+      title: row.title?.trim() || row.pseudotitle?.trim() || "Bez názvu",
+      perex: "Klikněte pro zobrazení článku...",
+      content: row.content ?? "",
+      category: normalizeCategory(row.theme),
+      published: randomTimestamp(),
+      author: pickRandomAuthor(),
+      dezinformative: parseBoolean(row.dezinfo),
+      manipulative: parseBoolean(row.manip),
+      question: row.question
+        ? [
+            {
+              question: row.question,
+              answers: [
+                { text: "ANO", is_correct: yesIsCorrect },
+                { text: "NE", is_correct: !yesIsCorrect },
+              ],
+            },
+          ]
+        : [],
+    };
+  });
+
+// Load articles from the CSV if available
+const deziperCsvModules = import.meta.glob("../../data/deziper-texts.csv", {
+  as: "raw",
   eager: true,
 });
-let loadedArticles: NewsArticle[] | null = null;
+const deziperCsvRaw = Object.values(deziperCsvModules)[0] as string | undefined;
 
-for (const path in articlesGlob) {
-  const mod = articlesGlob[path] as any;
-  if (Array.isArray(mod)) {
-    loadedArticles = mod;
-  } else if (mod && Array.isArray(mod.default)) {
-    loadedArticles = mod.default;
-  }
-}
+const loadedArticles: NewsArticle[] | null = deziperCsvRaw
+  ? mapCsvToArticles(csvToRows(deziperCsvRaw))
+  : null;
 
 const groupArticles = (
   articles: NewsArticle[]
@@ -407,9 +562,10 @@ const groupArticles = (
   return grouped;
 };
 
-export const rawNewsData: Record<string, NewsArticle[]> = loadedArticles
-  ? groupArticles(loadedArticles)
-  : defaultNewsData;
+export const rawNewsData: Record<string, NewsArticle[]> =
+  loadedArticles && loadedArticles.length > 0
+    ? groupArticles(loadedArticles)
+    : defaultNewsData;
 
 const shuffleArray = <T>(array: T[]): T[] => {
   const shuffled = [...array];

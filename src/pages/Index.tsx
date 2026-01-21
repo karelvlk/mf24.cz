@@ -2,13 +2,13 @@ import NewsCard from "@/components/NewsCard";
 import NewsHeader from "@/components/NewsHeader";
 import { Button } from "@/components/ui/button";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,6 +36,7 @@ const Index = () => {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [startPositionInput, setStartPositionInput] = useState("1");
   const [selectedMode, setSelectedMode] = useState<'none' | 'annotate' | 'experiment'>('none');
+  const DEFAULT_TEST_PARTICIPANT = "test-user";
 
   useEffect(() => {
     setParticipantInput(participantId);
@@ -107,6 +108,15 @@ const Index = () => {
     setIsConfigOpen(false);
   };
 
+  const handleQuickStartExperiment = () => {
+    if (totalArticles === 0) return;
+    const testId = DEFAULT_TEST_PARTICIPANT;
+    const orderedIds = allArticles.map((article) => article.id);
+    setParticipantInput(testId);
+    startExperiment(testId, orderedIds, 0);
+    setSelectedMode('experiment');
+  };
+
   const handleStartAnnotation = () => {
     const trimmedId = participantInput.trim();
     if (!trimmedId || totalArticles === 0) {
@@ -161,6 +171,18 @@ const Index = () => {
     };
   }, [isActive]);
 
+  useEffect(() => {
+    if (isActive) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "ArrowRight" && articlesForRendering.length > 0) {
+        event.preventDefault();
+        navigate(`/article/${articlesForRendering[0].id}`);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [articlesForRendering, isActive, navigate]);
+
   if (!isActive && selectedMode === 'none') {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-background p-4 text-center">
@@ -183,8 +205,7 @@ const Index = () => {
             size="lg"
             variant="outline"
             className="h-32 w-64 text-2xl"
-            onClick={() => setSelectedMode('experiment')}
-            disabled={import.meta.env.ENV_NAME !== 'experiment'}
+            onClick={handleQuickStartExperiment}
           >
             Experiment
           </Button>
@@ -235,6 +256,9 @@ const Index = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-3xl mx-auto">
           <h2 className="headline-primary mb-8">Hlavní zprávy</h2>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Stiskněte klávesu <kbd className="rounded-md border border-border bg-muted/40 px-1.5 py-[2px] text-[11px] font-semibold text-foreground shadow-sm">→</kbd> pro otevření článku.
+          </p>
           <div>
             {articlesForRendering.map((article) => {
               const orderPosition = isActive
