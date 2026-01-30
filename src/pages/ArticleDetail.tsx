@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { useExperimentMode } from "@/context/ExperimentModeContext";
 import { useScreenshotMode } from "@/context/ScreenshotModeContext";
 import { emptyFillerArticles, newsData } from "@/data/news";
@@ -20,11 +21,16 @@ import { useToast } from "@/hooks/use-toast";
 import { paginateArticleContent } from "@/lib/utils";
 import { ArrowLeft, Settings2 } from "lucide-react";
 import type { AnimationEvent as ReactAnimationEvent } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-const DEFAULT_FONT_SIZE = 28;
+const DEFAULT_FONT_SIZE = 30;
+const DEFAULT_IS_MONOSPACE = true;
 const DEFAULT_LINE_HEIGHT = 2.0;
+
+const MONOSPACE_FONT_STACK =
+  'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+const READER_SETTINGS_STORAGE_KEY = "reader_settings_session";
 const KEYCAP_CLASS =
   "rounded-md border border-border bg-muted/40 px-1.5 py-[2px] text-[11px] font-semibold uppercase tracking-wide text-foreground shadow-sm";
 
@@ -50,9 +56,12 @@ export default function ArticleDetail() {
   const [shouldReduceMotion, setShouldReduceMotion] = useState(false);
   const exitTimeoutRef = useRef<number | null>(null);
   const textContainerRef = useRef<HTMLDivElement | null>(null);
+  const [textContainerSize, setTextContainerSize] = useState<{ width: number; height: number } | null>(null);
+  const [isMonospace, setIsMonospace] = useState(DEFAULT_IS_MONOSPACE);
   const [questionAnswers, setQuestionAnswers] = useState<number[]>([]);
   const [annotationAnswers, setAnnotationAnswers] = useState<{ credibility?: number; manipulativeness?: number }>({});
   const [credibilitySlider, setCredibilitySlider] = useState<number | undefined>(undefined);
+  const [pages, setPages] = useState<string[]>([""]);
 
   // Find article in all categories
   const allArticles = [
@@ -101,14 +110,88 @@ export default function ArticleDetail() {
     []
   );
 
-  const pages = useMemo(
-    () =>
-      paginateArticleContent(articleBody, {
-        fontSize,
-        lineHeight,
-      }),
-    [articleBody, fontSize, lineHeight]
-  );
+  useLayoutEffect(() => {
+    const element = textContainerRef.current;
+    if (!element || typeof window === "undefined") {
+      return;
+    }
+
+    const updateSize = () => {
+      const styles = window.getComputedStyle(element);
+      const paddingX =
+        parseFloat(styles.paddingLeft || "0") + parseFloat(styles.paddingRight || "0");
+      const paddingY =
+        parseFloat(styles.paddingTop || "0") + parseFloat(styles.paddingBottom || "0");
+
+      setTextContainerSize({
+        width: Math.max(0, element.clientWidth - paddingX),
+        height: Math.max(0, element.clientHeight - paddingY),
+      });
+    };
+
+    updateSize();
+
+    if (typeof ResizeObserver !== "undefined") {
+      const resizeObserver = new ResizeObserver(updateSize);
+      resizeObserver.observe(element);
+      return () => resizeObserver.disconnect();
+    }
+
+    window.addEventListener("resize", updateSize);
+    return () => window.removeEventListener("resize", updateSize);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const raw = sessionStorage.getItem(READER_SETTINGS_STORAGE_KEY);
+    if (!raw) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed.fontSize === "number" && Number.isFinite(parsed.fontSize)) {
+        setFontSize(Math.min(40, Math.max(20, Math.round(parsed.fontSize))));
+      }
+      if (typeof parsed.lineHeight === "number" && Number.isFinite(parsed.lineHeight)) {
+        setLineHeight(Math.min(3, Math.max(1, Math.round(parsed.lineHeight * 10) / 10)));
+      }
+      if (typeof parsed.isMonospace === "boolean") {
+        setIsMonospace(parsed.isMonospace);
+      }
+    } catch (error) {
+      console.error("Failed to load reader settings", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const payload = {
+      fontSize,
+      lineHeight,
+      isMonospace,
+    };
+
+    sessionStorage.setItem(READER_SETTINGS_STORAGE_KEY, JSON.stringify(payload));
+  }, [fontSize, isMonospace, lineHeight]);
+
+  useEffect(() => {
+    const computedPages = paginateArticleContent(articleBody, {
+      fontSize,
+      lineHeight,
+      containerWidth: textContainerSize?.width,
+      containerHeight: textContainerSize?.height,
+      fontFamily: isMonospace ? MONOSPACE_FONT_STACK : undefined,
+    });
+
+    setPages(computedPages);
+  }, [articleBody, fontSize, isMonospace, lineHeight, textContainerSize]);
 
   const slides = useMemo<SlideDescriptor[]>(() => {
     const computed: SlideDescriptor[] = pages.map((_, index) => ({
@@ -384,6 +467,7 @@ export default function ArticleDetail() {
   const handleResetSettings = () => {
     setFontSize(DEFAULT_FONT_SIZE);
     setLineHeight(DEFAULT_LINE_HEIGHT);
+    setIsMonospace(false);
   };
 
   const completeNavigation = () => {
@@ -500,8 +584,8 @@ export default function ArticleDetail() {
                   id="article-font-size"
                   value={[fontSize]}
                   onValueChange={handleFontSizeChange}
-                  min={11}
-                  max={32}
+                  min={20}
+                  max={40}
                   step={1}
                 />
               </div>
@@ -516,14 +600,28 @@ export default function ArticleDetail() {
                   id="article-line-height"
                   value={[lineHeight]}
                   onValueChange={handleLineHeightChange}
-                  min={1.2}
-                  max={2.5}
+                  min={1}
+                  max={3}
                   step={0.1}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
                 Rozložení textu se automaticky přizpůsobí velikosti obrazovky a nastavení písma.
               </p>
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-separator/50 bg-muted/10 px-3 py-3">
+                <div className="space-y-1">
+                  <Label htmlFor="article-monospace">Monospace font</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Zobrazí článek v neproporcionálním písmu.
+                  </p>
+                </div>
+                <Switch
+                  id="article-monospace"
+                  checked={isMonospace}
+                  onCheckedChange={setIsMonospace}
+                  aria-label="Přepnout monospace font"
+                />
+              </div>
             </div>
             <DialogFooter className="mt-4">
               <Button variant="ghost" onClick={handleResetSettings}>
@@ -550,11 +648,17 @@ export default function ArticleDetail() {
                 <div
                   ref={textContainerRef}
                   className="flex flex-1 flex-col gap-4 overflow-auto rounded-lg border border-separator/40 bg-white px-4 py-4 shadow-sm md:px-6 md:py-5"
-                  style={{ fontSize: `${fontSize}px`, lineHeight: lineHeight }}
                 >
                   {currentSlideDescriptor?.type === "page" &&
                     typeof currentSlideDescriptor.index === "number" && (
-                      <p className="text-foreground/80 whitespace-pre-line">
+                      <p
+                        className="text-foreground/80 whitespace-pre-line text-justify"
+                        style={{
+                          fontSize: `${fontSize}px`,
+                          lineHeight: lineHeight,
+                          fontFamily: isMonospace ? MONOSPACE_FONT_STACK : undefined
+                        }}
+                      >
                         {(pages[currentSlideDescriptor.index] ?? "").replace(/\n+/g, " ").trim()}
                       </p>
                     )}

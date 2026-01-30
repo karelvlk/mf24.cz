@@ -38,40 +38,42 @@ export default function NewsHeader() {
       </div>
 
       {/* Navigation */}
-      <nav>
-        <div className="container mx-auto px-4">
-          <div className="flex space-x-6">
-            <Link
-              to="/"
-              className={`py-3 text-sm transition-colors ${
-                location.pathname === '/'
-                  ? 'text-primary font-medium'
-                  : 'text-foreground hover:text-primary'
-              }`}
-            >
-              Domov
-            </Link>
-            {categories.map((category) => (
+      {!location.pathname.startsWith("/article") && (
+        <nav>
+          <div className="container mx-auto px-4">
+            <div className="flex space-x-6">
               <Link
-                key={category.id}
-                to={category.path}
-                aria-disabled={experimentActive}
-                tabIndex={experimentActive ? -1 : 0}
-                onClick={experimentActive ? (event) => event.preventDefault() : undefined}
-                className={cn(
-                  "py-3 text-sm transition-colors",
-                  location.pathname === category.path
+                to="/"
+                className={`py-3 text-sm transition-colors ${
+                  location.pathname === '/'
                     ? 'text-primary font-medium'
-                    : 'text-foreground hover:text-primary',
-                  experimentActive && "cursor-not-allowed pointer-events-none text-muted-foreground/70 hover:text-muted-foreground/70"
-                )}
+                    : 'text-foreground hover:text-primary'
+                }`}
               >
-                {category.label}
+                Domov
               </Link>
-            ))}
+              {categories.map((category) => (
+                <Link
+                  key={category.id}
+                  to={category.path}
+                  aria-disabled={experimentActive}
+                  tabIndex={experimentActive ? -1 : 0}
+                  onClick={experimentActive ? (event) => event.preventDefault() : undefined}
+                  className={cn(
+                    "py-3 text-sm transition-colors",
+                    location.pathname === category.path
+                      ? 'text-primary font-medium'
+                      : 'text-foreground hover:text-primary',
+                    experimentActive && "cursor-not-allowed pointer-events-none text-muted-foreground/70 hover:text-muted-foreground/70"
+                  )}
+                >
+                  {category.label}
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
-      </nav>
+        </nav>
+      )}
     </header>
   );
 }

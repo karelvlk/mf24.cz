@@ -172,16 +172,26 @@ const Index = () => {
   }, [isActive]);
 
   useEffect(() => {
-    if (isActive) return;
+    const firstArticleId =
+      (isActive && mode === "experiment"
+        ? currentArticleId ?? remainingArticleIds[0]
+        : null) ??
+      articlesForRendering[0]?.id;
+
+    if (!firstArticleId) {
+      return;
+    }
+
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "ArrowRight" && articlesForRendering.length > 0) {
+      if (event.key === "ArrowRight") {
         event.preventDefault();
-        navigate(`/article/${articlesForRendering[0].id}`);
+        navigate(`/article/${firstArticleId}`);
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [articlesForRendering, isActive, navigate]);
+  }, [articlesForRendering, currentArticleId, isActive, mode, navigate, remainingArticleIds]);
 
   if (!isActive && selectedMode === 'none') {
     return (
