@@ -602,32 +602,7 @@ export const newsData: Record<string, NewsArticle[]> = {
 };
 
 // Empty/meaningless filler content for slow news days (no questions)
-export const emptyFillerArticles: NewsArticle[] = [
-  {
-    id: "e1",
-    title: "Dnes se vlastně nic nestalo",
-    perex:
-      "Dnešní den proběhl bez větších událostí. Úřady hlásí běžný provoz, doprava bez komplikací, počasí bez extrémů.",
-    category: "ceska-politika",
-    published: "16:00",
-    author: "Redakce",
-    dezinformative: false,
-    manipulative: false,
-    question: [],
-  },
-  {
-    id: "e2",
-    title: "V přírodě žádné změny",
-    perex:
-      "Dnešek se obešel bez přírodních anomálií či zásadních změn. Podmínky v krajině zůstávají klidné.",
-    category: "priroda",
-    published: "16:20",
-    author: "Redakce",
-    dezinformative: false,
-    manipulative: false,
-    question: [],
-  },
-];
+export const emptyFillerArticles: NewsArticle[] = [];
 
 export function getNewsForCategory(category: string): NewsArticle[] {
   return newsData[category] || [];

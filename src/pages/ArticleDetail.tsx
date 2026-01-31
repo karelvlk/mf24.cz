@@ -25,12 +25,14 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useNavigate, useParams } from "react-router-dom";
 
 const DEFAULT_FONT_SIZE = 30;
-const DEFAULT_IS_MONOSPACE = true;
+const DEFAULT_IS_MONOSPACE = false;
 const DEFAULT_LINE_HEIGHT = 2.0;
+const DEFAULT_CONTENT_WIDTH = 1024;
+const DEFAULT_IS_JUSTIFIED = true;
 
 const MONOSPACE_FONT_STACK =
   'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
-const READER_SETTINGS_STORAGE_KEY = "reader_settings_session";
+const READER_SETTINGS_STORAGE_KEY = "reader_settings_local";
 const KEYCAP_CLASS =
   "rounded-md border border-border bg-muted/40 px-1.5 py-[2px] text-[11px] font-semibold uppercase tracking-wide text-foreground shadow-sm";
 
@@ -52,6 +54,7 @@ export default function ArticleDetail() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [fontSize, setFontSize] = useState(DEFAULT_FONT_SIZE);
   const [lineHeight, setLineHeight] = useState(DEFAULT_LINE_HEIGHT);
+  const [contentWidth, setContentWidth] = useState(DEFAULT_CONTENT_WIDTH);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [animationState, setAnimationState] = useState<"idle" | "enter" | "exit">("idle");
   const [shouldReduceMotion, setShouldReduceMotion] = useState(false);
@@ -59,6 +62,7 @@ export default function ArticleDetail() {
   const textContainerRef = useRef<HTMLDivElement | null>(null);
   const [textContainerSize, setTextContainerSize] = useState<{ width: number; height: number } | null>(null);
   const [isMonospace, setIsMonospace] = useState(DEFAULT_IS_MONOSPACE);
+  const [isJustified, setIsJustified] = useState(DEFAULT_IS_JUSTIFIED);
   const [questionAnswers, setQuestionAnswers] = useState<number[]>([]);
   const [annotationAnswers, setAnnotationAnswers] = useState<{ credibility?: number; manipulativeness?: number }>({});
   const [credibilitySlider, setCredibilitySlider] = useState<number | undefined>(undefined);
@@ -148,7 +152,7 @@ export default function ArticleDetail() {
       return;
     }
 
-    const raw = sessionStorage.getItem(READER_SETTINGS_STORAGE_KEY);
+    const raw = localStorage.getItem(READER_SETTINGS_STORAGE_KEY);
     if (!raw) {
       return;
     }
@@ -161,8 +165,14 @@ export default function ArticleDetail() {
       if (typeof parsed.lineHeight === "number" && Number.isFinite(parsed.lineHeight)) {
         setLineHeight(Math.min(3, Math.max(1, Math.round(parsed.lineHeight * 10) / 10)));
       }
+      if (typeof parsed.contentWidth === "number" && Number.isFinite(parsed.contentWidth)) {
+        setContentWidth(Math.min(1200, Math.max(600, Math.round(parsed.contentWidth))));
+      }
       if (typeof parsed.isMonospace === "boolean") {
         setIsMonospace(parsed.isMonospace);
+      }
+      if (typeof parsed.isJustified === "boolean") {
+        setIsJustified(parsed.isJustified);
       }
     } catch (error) {
       console.error("Failed to load reader settings", error);
@@ -177,11 +187,13 @@ export default function ArticleDetail() {
     const payload = {
       fontSize,
       lineHeight,
+      contentWidth,
       isMonospace,
+      isJustified,
     };
 
-    sessionStorage.setItem(READER_SETTINGS_STORAGE_KEY, JSON.stringify(payload));
-  }, [fontSize, isMonospace, lineHeight]);
+    localStorage.setItem(READER_SETTINGS_STORAGE_KEY, JSON.stringify(payload));
+  }, [fontSize, isMonospace, isJustified, lineHeight, contentWidth]);
 
   useEffect(() => {
     const computedPages = paginateArticleContent(articleBody, {
@@ -464,7 +476,9 @@ export default function ArticleDetail() {
   const handleResetSettings = () => {
     setFontSize(DEFAULT_FONT_SIZE);
     setLineHeight(DEFAULT_LINE_HEIGHT);
-    setIsMonospace(false);
+    setContentWidth(DEFAULT_CONTENT_WIDTH);
+    setIsMonospace(DEFAULT_IS_MONOSPACE);
+    setIsJustified(DEFAULT_IS_JUSTIFIED);
   };
 
   const completeNavigation = () => {
@@ -602,6 +616,27 @@ export default function ArticleDetail() {
                   step={0.1}
                 />
               </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="article-content-width">Šířka obsahu</Label>
+                  <span className="text-sm font-medium text-foreground">
+                    {contentWidth}px
+                  </span>
+                </div>
+                <Slider
+                  id="article-content-width"
+                  value={[contentWidth]}
+                  onValueChange={(value) => {
+                    const next = value[0];
+                    if (typeof next === "number" && Number.isFinite(next)) {
+                      setContentWidth(Math.round(next));
+                    }
+                  }}
+                  min={600}
+                  max={1200}
+                  step={50}
+                />
+              </div>
               <p className="text-xs text-muted-foreground">
                 Rozložení textu se automaticky přizpůsobí velikosti obrazovky a nastavení písma.
               </p>
@@ -619,6 +654,20 @@ export default function ArticleDetail() {
                   aria-label="Přepnout monospace font"
                 />
               </div>
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-separator/50 bg-muted/10 px-3 py-3">
+                <div className="space-y-1">
+                  <Label htmlFor="article-justify">Zarovnání do bloku</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Zarovná text na obě strany.
+                  </p>
+                </div>
+                <Switch
+                  id="article-justify"
+                  checked={isJustified}
+                  onCheckedChange={setIsJustified}
+                  aria-label="Přepnout zarovnání do bloku"
+                />
+              </div>
             </div>
             <DialogFooter className="mt-4">
               <Button variant="ghost" onClick={handleResetSettings}>
@@ -629,7 +678,7 @@ export default function ArticleDetail() {
           </DialogContent>
         </Dialog>
         <main className="flex flex-1 justify-center overflow-hidden px-2 py-2 md:px-3 md:py-4">
-          <div className="flex h-full w-full max-w-4xl flex-col gap-2 md:gap-3">
+          <div className="flex h-full w-full flex-col gap-2 md:gap-3" style={{ maxWidth: `${contentWidth}px` }}>
             <div className="flex h-12 flex-none items-center">
             </div>
 
@@ -642,11 +691,12 @@ export default function ArticleDetail() {
                   {currentSlideDescriptor?.type === "page" &&
                     typeof currentSlideDescriptor.index === "number" && (
                       <p
-                        className="text-foreground/80 whitespace-pre-line text-justify"
+                        className="text-foreground/80 whitespace-pre-line"
                         style={{
                           fontSize: `${fontSize}px`,
                           lineHeight: lineHeight,
-                          fontFamily: isMonospace ? MONOSPACE_FONT_STACK : undefined
+                          fontFamily: isMonospace ? MONOSPACE_FONT_STACK : undefined,
+                          textAlign: isJustified ? 'justify' : 'left'
                         }}
                       >
                         {(pages[currentSlideDescriptor.index] ?? "").replace(/\n+/g, " ").trim()}
@@ -709,7 +759,7 @@ export default function ArticleDetail() {
 
                   {currentSlideDescriptor?.type === "credibility-scale" && (
                     <AnnotationSlide
-                      question="Nakolik je pro vás tento článek důvěryhodný?"
+                      question="Nakolik je pro Vás tento článek důvěryhodný?"
                       value={credibilitySlider}
                       onChange={(value) => setCredibilitySlider(value)}
                       min={1}
@@ -759,21 +809,24 @@ export default function ArticleDetail() {
                       </span>
                     </div>
                   </div>
-                  <div className="ml-auto flex items-center gap-2">
-                    {slides.map((_, index) => (
-                      <span
-                        key={`pagination-${index}`}
-                        className={
-                          currentSlide === index
-                            ? "inline-flex h-8 w-8 items-center justify-center rounded-md border border-primary bg-primary text-xs font-semibold text-primary-foreground"
-                            : "inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-white/80 text-xs font-semibold text-muted-foreground"
-                        }
-                        aria-current={currentSlide === index ? "page" : undefined}
-                      >
-                        {index + 1}
-                      </span>
-                    ))}
-                  </div>
+                  {currentSlideDescriptor?.type === "page" &&
+                    typeof currentSlideDescriptor.index === "number" && (
+                      <div className="ml-auto flex items-center gap-2">
+                        {pages.map((_, index) => (
+                          <span
+                            key={`pagination-${index}`}
+                            className={
+                              currentSlideDescriptor.index === index
+                                ? "inline-flex h-8 w-8 items-center justify-center rounded-md border border-primary bg-primary text-xs font-semibold text-primary-foreground"
+                                : "inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-white/80 text-xs font-semibold text-muted-foreground"
+                            }
+                            aria-current={currentSlideDescriptor.index === index ? "page" : undefined}
+                          >
+                            {index + 1}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                 </div>
               </div>
             </article>

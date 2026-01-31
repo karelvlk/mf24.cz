@@ -3,8 +3,8 @@
 import { spawn } from "child_process";
 import fs from "fs/promises";
 import path from "path";
-import { fileURLToPath } from "url";
 import puppeteer from "puppeteer";
+import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,9 +21,9 @@ const RUN_ID = new Date().toISOString().replace(/[:.]/g, "-");
 const OUTPUT_DIR = path.join(SCREENSHOT_ROOT, `run-${RUN_ID}`);
 const INDEX_TSV = path.join(OUTPUT_DIR, "index.tsv");
 
-const SCREENSHOT_DELAY = Number.parseInt(process.env.EXPERIMENT_SCREENSHOT_DELAY ?? "500", 10);
-const ACTION_DELAY = Number.parseInt(process.env.EXPERIMENT_ACTION_DELAY ?? "350", 10);
-const NAVIGATION_DELAY = Number.parseInt(process.env.EXPERIMENT_NAV_DELAY ?? "900", 10);
+const SCREENSHOT_DELAY = Number.parseInt(process.env.EXPERIMENT_SCREENSHOT_DELAY ?? "120", 10);
+const ACTION_DELAY = Number.parseInt(process.env.EXPERIMENT_ACTION_DELAY ?? "80", 10);
+const NAVIGATION_DELAY = Number.parseInt(process.env.EXPERIMENT_NAV_DELAY ?? "300", 10);
 
 const animationBlockerCSS = `
 *, *::before, *::after {
@@ -36,11 +36,10 @@ const animationBlockerCSS = `
 `;
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const pad = (value, size = 2) => String(value).padStart(size, "0");
-const screenshotLog = [];
 
 function parseArguments(argv) {
   let articleLimit = null;
+  let onlyTsv = false;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -51,13 +50,15 @@ function parseArguments(argv) {
         articleLimit = next;
       }
       index += 1;
+    } else if (arg === "--only-tsv") {
+      onlyTsv = true;
     }
   }
 
-  return { articleLimit };
+  return { articleLimit, onlyTsv };
 }
 
-const { articleLimit: cliArticleLimit } = parseArguments(process.argv.slice(2));
+const { articleLimit: cliArticleLimit, onlyTsv } = parseArguments(process.argv.slice(2));
 const envArticleLimit = Number.parseInt(process.env.EXPERIMENT_ARTICLE_LIMIT ?? "", 10);
 const ARTICLE_LIMIT =
   Number.isFinite(cliArticleLimit) && cliArticleLimit > 0
@@ -65,6 +66,7 @@ const ARTICLE_LIMIT =
     : Number.isFinite(envArticleLimit) && envArticleLimit > 0
       ? envArticleLimit
       : null;
+const ONLY_TSV = onlyTsv;
 
 async function ensureOutputDir() {
   await fs.mkdir(OUTPUT_DIR, { recursive: true });
@@ -219,28 +221,32 @@ async function waitForArticleNavigation(page) {
   await delay(NAVIGATION_DELAY);
 }
 
-function formatOptionLabel(index) {
-  return String(index + 1);
+function normalizeArticleId(rawId) {
+  const match = String(rawId ?? "").match(/\d+/);
+  return match ? match[0] : String(rawId ?? "");
 }
 
 async function extractSlideInfo(page) {
   return page.evaluate(() => {
-    const slideLabel = Array.from(document.querySelectorAll("span")).find((el) =>
-      /^Strana\s+\d+\s*\/\s*\d+/i.test(el.textContent ?? "")
-    );
-
-    const match = slideLabel?.textContent?.match(/Strana\s+(\d+)\s*\/\s*(\d+)/i);
-    const current = match ? Number.parseInt(match[1], 10) : null;
-    const total = match ? Number.parseInt(match[2], 10) : null;
+    const currentPageEl = document.querySelector("span[aria-current='page']");
+    const paginationContainer = currentPageEl?.parentElement ?? null;
+    const paginationItems = paginationContainer
+      ? Array.from(paginationContainer.querySelectorAll("span"))
+      : [];
+    const currentPage = currentPageEl
+      ? Number.parseInt(currentPageEl.textContent ?? "", 10)
+      : null;
+    const totalPages = paginationItems.length > 0 ? paginationItems.length : null;
 
     const questionRoot = document.querySelector("[data-question-index][data-question-active='true']");
 
-    const credibilitySlide = document.querySelector("[data-question-kind='credibility-scale']");
-    const credibilityQuestionNumber = credibilitySlide
-      ? Number.parseInt(credibilitySlide.getAttribute("data-question-number") ?? "3", 10)
+    const sliderRoot = document.querySelector("[data-question-kind]");
+    const sliderKind = sliderRoot?.getAttribute("data-question-kind") ?? null;
+    const sliderQuestionNumber = sliderRoot
+      ? Number.parseInt(sliderRoot.getAttribute("data-question-number") ?? "0", 10)
       : null;
-    const credibilityOptionCount = credibilitySlide
-      ? Number.parseInt(credibilitySlide.getAttribute("data-option-count") ?? "7", 10)
+    const sliderOptionCount = sliderRoot
+      ? Number.parseInt(sliderRoot.getAttribute("data-option-count") ?? "0", 10)
       : null;
 
     const answers = questionRoot
@@ -252,42 +258,68 @@ async function extractSlideInfo(page) {
           .filter((answer) => Number.isFinite(answer.index) && answer.index >= 0)
       : [];
 
+    let signature = "unknown";
+    if (questionRoot) {
+      const qIndex = Number.parseInt(questionRoot.getAttribute("data-question-index") ?? "-1", 10);
+      signature = `question:${qIndex}`;
+    } else if (sliderRoot) {
+      signature = `slider:${sliderKind ?? "unknown"}`;
+    } else if (Number.isFinite(currentPage)) {
+      signature = `page:${currentPage}`;
+    }
+
     return {
-      currentSlide: current,
-      totalSlides: total,
+      currentPage,
+      totalPages,
       isQuestion: Boolean(questionRoot),
       questionIndex: questionRoot
         ? Number.parseInt(questionRoot.getAttribute("data-question-index") ?? "-1", 10)
         : null,
       answers,
-      isCredibilityScale: Boolean(credibilitySlide),
-      sliderQuestionNumber: credibilityQuestionNumber,
-      sliderOptionCount: credibilityOptionCount,
+      isSlider: Boolean(sliderRoot),
+      sliderKind,
+      sliderQuestionNumber,
+      sliderOptionCount,
+      signature,
     };
   });
 }
 
-async function waitForSlideChange(page, previousSlideNumber) {
+async function waitForSlideChange(page, previousSignature) {
   await page
     .waitForFunction(
       (prev) => {
-        const label = Array.from(document.querySelectorAll("span")).find((el) =>
-          /^Strana\s+\d+\s*\/\s*\d+/i.test(el.textContent ?? "")
-        );
-        const match = label?.textContent?.match(/Strana\s+(\d+)\s*\/\s*(\d+)/i);
-        if (!match) return false;
-        const current = Number.parseInt(match[1], 10);
-        return current !== prev;
+        const currentPageEl = document.querySelector("span[aria-current='page']");
+        const questionRoot = document.querySelector("[data-question-index][data-question-active='true']");
+        const sliderRoot = document.querySelector("[data-question-kind]");
+
+        let signature = "unknown";
+        if (questionRoot) {
+          const qIndex = Number.parseInt(questionRoot.getAttribute("data-question-index") ?? "-1", 10);
+          signature = `question:${qIndex}`;
+        } else if (sliderRoot) {
+          const sliderKind = sliderRoot.getAttribute("data-question-kind") ?? "unknown";
+          signature = `slider:${sliderKind}`;
+        } else if (currentPageEl) {
+          signature = `page:${currentPageEl.textContent ?? ""}`;
+        }
+
+        return signature !== prev;
       },
       { timeout: 10_000 },
-      previousSlideNumber
+      previousSignature
     )
     .catch(() => {});
 }
 
 async function waitForHome(page) {
-  await page.waitForSelector("article[data-card-variant='minimal']", { timeout: 10_000 });
+  await page.waitForFunction(() => window.location.pathname === "/" || !window.location.pathname.includes("/article/"), { timeout: 10_000 });
   await delay(NAVIGATION_DELAY);
+
+  // Try to wait for articles to load, but don't fail if they don't (e.g., at end of list)
+  await page.waitForSelector("article[data-card-variant='minimal']", { timeout: 5_000 }).catch(() => {
+    console.log("Note: No more article cards found (possibly at end of list)");
+  });
 }
 
 function round(value) {
@@ -393,6 +425,10 @@ async function collectBoundingBoxes(page, meta) {
 }
 
 async function captureScreenshot(page, articleId, baseName, meta = {}) {
+  if (ONLY_TSV) {
+    return;
+  }
+
   const { imageDir, metaDir } = await ensureArticleDirs(articleId);
   const pngPath = path.join(imageDir, `${baseName}.png`);
   const metaPath = path.join(metaDir, `${baseName}.json`);
@@ -405,48 +441,35 @@ async function captureScreenshot(page, articleId, baseName, meta = {}) {
   console.log(`Saved screenshot: ${path.relative(projectRoot, pngPath)}`);
   console.log(`Saved boxes:      ${path.relative(projectRoot, metaPath)}`);
 
-  const articleLabel = `article-${articleId}`;
-  const parsedPage = Number.parseInt(meta.pageLabel ?? "", 10);
-  const pageField = Number.isFinite(parsedPage) ? String(parsedPage) : "";
-  const relativeFile = path.join(articleLabel, "images", `${baseName}.png`);
-  const questionValue =
-    meta.questionNumber && meta.questionNumber > 0
-      ? meta.optionLabel === "unselected"
-        ? "0"
-        : String(meta.optionLabel)
-      : "None";
-  const isLastPage = Boolean(meta.isLastPage);
-
-  screenshotLog.push({
-    articleId: articleLabel,
-    page: pageField,
-    file: relativeFile,
-    isLastPage,
-    question: questionValue,
-  });
+  void meta;
 }
 
-async function captureQuestionSlide(page, articleId, slideInfo, isLastPage = false) {
-  const pageLabel = slideInfo.currentSlide ? pad(slideInfo.currentSlide) : "--";
-  const questionNumber = (slideInfo.questionIndex ?? 0) + 1;
+async function captureQuestionSlide(page, articleId, slideInfo) {
+  const questionIndex = slideInfo.questionIndex ?? -1;
+  if (questionIndex !== 0) {
+    return;
+  }
 
-  const unselectedFilename = `article-${articleId}-${pageLabel}-Q${questionNumber}(unselected)`;
+  const normalizedId = normalizeArticleId(articleId);
+  const unselectedFilename = `${normalizedId}_q_empty`;
   await captureScreenshot(page, articleId, unselectedFilename, {
     articleId,
-    pageLabel,
-    questionNumber,
+    questionNumber: questionIndex + 1,
     optionLabel: "unselected",
     url: await page.url(),
-    isLastPage,
   });
 
   for (const answer of slideInfo.answers) {
-    const optionLabel = formatOptionLabel(answer.index);
-    const filename = `article-${articleId}-${pageLabel}-Q${questionNumber}(${optionLabel})`;
+    const label = (answer.text ?? "").toLowerCase();
+    const optionLabel = label.includes("ano") ? "s" : label.includes("ne") ? "d" : null;
+    if (!optionLabel) {
+      continue;
+    }
+    const filename = `${normalizedId}_q_${optionLabel}`;
     const selector = `[data-question-index='${slideInfo.questionIndex}'][data-question-active='true'] [data-answer-index='${answer.index}']`;
     const buttonHandle = await page.$(selector);
     if (!buttonHandle) {
-      console.warn(`Answer button not found for question ${questionNumber}, option ${answer.index}.`);
+      console.warn(`Answer button not found for question ${questionIndex + 1}, option ${answer.index}.`);
       continue;
     }
 
@@ -454,105 +477,129 @@ async function captureQuestionSlide(page, articleId, slideInfo, isLastPage = fal
     await delay(ACTION_DELAY);
     await captureScreenshot(page, articleId, filename, {
       articleId,
-      pageLabel,
-      questionNumber,
+      questionNumber: questionIndex + 1,
       optionLabel,
       url: await page.url(),
-      isLastPage,
     });
   }
 }
 
-async function captureSliderSlide(page, articleId, slideInfo, isLastPage = false) {
-  const pageLabel = slideInfo.currentSlide ? pad(slideInfo.currentSlide) : "--";
-  const questionNumber = slideInfo.sliderQuestionNumber ?? 3;
-  const optionCount = slideInfo.sliderOptionCount ?? 7;
+async function captureSliderSlide(page, articleId, slideInfo) {
+  const sliderKind = slideInfo.sliderKind ?? "";
+  const optionCount = slideInfo.sliderOptionCount ?? 5;
+  const optionLabels = ["s", "d", "f", "j", "k"];
 
-  const unselectedFilename = `article-${articleId}-${pageLabel}-Q${questionNumber}(unselected)`;
-  await captureScreenshot(page, articleId, unselectedFilename, {
+  if (optionCount < 1) {
+    return;
+  }
+
+  let baseName = null;
+  if (sliderKind === "novelty-scale") {
+    baseName = "heard";
+  } else if (sliderKind === "credibility-scale") {
+    baseName = "credibility";
+  }
+
+  if (!baseName) {
+    return;
+  }
+
+  await captureScreenshot(page, articleId, `${baseName}_empty`, {
     articleId,
-    pageLabel,
-    questionNumber,
+    questionNumber: slideInfo.sliderQuestionNumber ?? null,
     optionLabel: "unselected",
     url: await page.url(),
-    isLastPage,
   });
 
-  for (let option = 1; option <= optionCount; option += 1) {
+  const maxOption = Math.min(optionCount, optionLabels.length);
+  for (let option = 1; option <= maxOption; option += 1) {
     await page.keyboard.press(String(option));
     await delay(ACTION_DELAY);
-    const filename = `article-${articleId}-${pageLabel}-Q${questionNumber}(${option})`;
-    await captureScreenshot(page, articleId, filename, {
+    await captureScreenshot(page, articleId, `${baseName}_${optionLabels[option - 1]}`, {
       articleId,
-      pageLabel,
-      questionNumber,
+      questionNumber: slideInfo.sliderQuestionNumber ?? null,
       optionLabel: String(option),
       url: await page.url(),
-      isLastPage,
     });
   }
 }
 
-async function captureNonQuestionSlide(page, articleId, slideInfo, isLastPage = false) {
-  const pageLabel = slideInfo.currentSlide ? pad(slideInfo.currentSlide) : "--";
-  const filename = `article-${articleId}-${pageLabel}-Q0(base)`;
+async function captureTextSlide(page, articleId, slideInfo) {
+  if (!Number.isFinite(slideInfo.currentPage)) {
+    return;
+  }
+
+  const normalizedId = normalizeArticleId(articleId);
+  const filename = `${normalizedId}_${slideInfo.currentPage}`;
   await captureScreenshot(page, articleId, filename, {
     articleId,
-    pageLabel,
+    pageLabel: String(slideInfo.currentPage),
     questionNumber: 0,
     optionLabel: "base",
     url: await page.url(),
-    isLastPage,
   });
 }
 
-async function captureArticleSlides(page, articleId) {
+async function captureArticleSlides(page, articleId, articlePosition) {
+  let maxPages = null;
+
   while (true) {
-    const slideInfo = await extractSlideInfo(page);
+    const isOnArticle = await page
+      .evaluate(() => window.location.pathname.includes("/article/"))
+      .catch(() => false);
 
-    if (!slideInfo.currentSlide || !slideInfo.totalSlides) {
-      await delay(150);
-      continue;
-    }
-
-    const isLastSlide = slideInfo.currentSlide >= slideInfo.totalSlides;
-
-    if (slideInfo.isQuestion) {
-      await captureQuestionSlide(page, articleId, slideInfo, isLastSlide);
-    } else if (slideInfo.isCredibilityScale) {
-      await captureSliderSlide(page, articleId, slideInfo, isLastSlide);
-    } else {
-      await captureNonQuestionSlide(page, articleId, slideInfo, isLastSlide);
-    }
-
-    if (isLastSlide) {
-      await page.keyboard.press("ArrowRight");
+    if (!isOnArticle) {
       await waitForHome(page);
       break;
     }
 
-    await page.keyboard.press("ArrowRight");
-    await waitForSlideChange(page, slideInfo.currentSlide);
+    const slideInfo = await extractSlideInfo(page);
+
+    if (slideInfo.signature === "unknown") {
+      await delay(150);
+      continue;
+    }
+
+    if (Number.isFinite(slideInfo.totalPages)) {
+      maxPages = slideInfo.totalPages;
+    }
+
+    if (slideInfo.isQuestion) {
+      await captureQuestionSlide(page, articleId, slideInfo);
+    } else if (slideInfo.isSlider && articlePosition === 1) {
+      await captureSliderSlide(page, articleId, slideInfo);
+    } else if (!slideInfo.isSlider && !slideInfo.isQuestion) {
+      await captureTextSlide(page, articleId, slideInfo);
+    }
+
+    const previousSignature = slideInfo.signature;
+    await page.keyboard.press("Space");
     await delay(ACTION_DELAY);
+
+    const navigatedHome = await page
+      .waitForFunction(() => !window.location.pathname.includes("/article/"), { timeout: 3_000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (navigatedHome) {
+      await waitForHome(page);
+      break;
+    }
+
+    await waitForSlideChange(page, previousSignature);
   }
+
+  return Number.isFinite(maxPages) ? maxPages : 0;
 }
 
 async function captureArticle(page, articleId, articlePosition) {
-  const homeFilename = `article-${articleId}-00-Q0(home)`;
-  await captureScreenshot(page, articleId, homeFilename, {
-    articleId,
-    pageLabel: "00",
-    questionNumber: 0,
-    optionLabel: "home",
-    url: await page.url(),
-    articlePosition,
-    isLastPage: false,
-  });
-
   const articleSelector = `article[data-article-id='${articleId}']`;
   await page.click(articleSelector);
   await waitForArticleNavigation(page);
-  await captureArticleSlides(page, articleId);
+  const maxPages = await captureArticleSlides(page, articleId, articlePosition);
+  const normalizedId = normalizeArticleId(articleId);
+  const tsvLine = `${normalizedId}\t${maxPages}\n`;
+  await fs.appendFile(INDEX_TSV, tsvLine, "utf8");
 }
 
 async function captureExperiment(page) {
@@ -595,22 +642,11 @@ async function main() {
       console.log(`Article limit: ${ARTICLE_LIMIT}`);
     }
 
+    await fs.writeFile(INDEX_TSV, "article_id\tmax_pages\n", "utf8");
+    console.log(`Index TSV: ${path.relative(projectRoot, INDEX_TSV)}`);
+
     await startExperiment(page);
     await captureExperiment(page);
-    const tsvLines = [
-      ["article_id", "page", "file", "is_last_page", "question"].join("\t"),
-      ...screenshotLog.map((entry) =>
-        [
-          entry.articleId,
-          entry.page,
-          entry.file,
-          entry.isLastPage ? "true" : "false",
-          entry.question,
-        ].join("\t")
-      ),
-    ];
-    await fs.writeFile(INDEX_TSV, tsvLines.join("\n"), "utf8");
-    console.log(`Index TSV written: ${path.relative(projectRoot, INDEX_TSV)}`);
   } finally {
     await browser.close();
     await stopDevServer(devProcess);
