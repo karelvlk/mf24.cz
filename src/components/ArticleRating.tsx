@@ -80,7 +80,7 @@ export default function ArticleRating({
   }
 
   return (
-    <div className="flex h-full w-full flex-col gap-4 rounded-lg border border-separator/40 bg-white/80 px-5 py-4 md:px-8 md:py-6">
+    <div className="flex h-full w-full flex-col gap-4 rounded-lg bg-white/80 px-5 py-4">
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
           <span>Hodnocení</span>

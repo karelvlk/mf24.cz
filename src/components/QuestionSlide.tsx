@@ -57,7 +57,7 @@ export default function QuestionSlide({
 
   return (
     <div
-      className="flex h-full w-full flex-col gap-4 rounded-lg border border-separator/40 bg-white/80 px-5 py-4 md:px-8 md:py-6"
+      className="flex h-full w-full flex-col gap-4 rounded-lg bg-white/80 px-5 py-4"
       data-question-index={questionIndex}
       data-question-active={active}
       data-answer-count={question.answers.length}

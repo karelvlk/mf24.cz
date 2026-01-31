@@ -38,6 +38,7 @@ type SlideDescriptor =
   | { type: "page"; index: number }
   | { type: "question"; index: number }
   | { type: "credibility-scale" }
+  | { type: "novelty-scale" }
   | { type: "heard-question" }
   | { type: "annotation-credibility" }
   | { type: "annotation-manipulativeness" };
@@ -61,6 +62,7 @@ export default function ArticleDetail() {
   const [questionAnswers, setQuestionAnswers] = useState<number[]>([]);
   const [annotationAnswers, setAnnotationAnswers] = useState<{ credibility?: number; manipulativeness?: number }>({});
   const [credibilitySlider, setCredibilitySlider] = useState<number | undefined>(undefined);
+  const [noveltySlider, setNoveltySlider] = useState<number | undefined>(undefined);
   const [pages, setPages] = useState<string[]>([""]);
 
   // Find article in all categories
@@ -211,10 +213,10 @@ export default function ArticleDetail() {
       );
     }
 
-    // Heard-about question before final credibility slider
-    computed.push({ type: "heard-question" });
+    // Novelty slider first
+    computed.push({ type: "novelty-scale" });
 
-    // Credibility slider last
+    // Credibility slider second
     computed.push({ type: "credibility-scale" });
 
     return computed;
@@ -317,6 +319,7 @@ export default function ArticleDetail() {
       : [];
   const showQuestionHints = currentQuestionKeys.length > 0;
   const isCredibilitySlide = currentSlideDescriptor?.type === "credibility-scale";
+  const isNoveltySlide = currentSlideDescriptor?.type === "novelty-scale";
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -324,11 +327,15 @@ export default function ArticleDetail() {
         e.preventDefault();
         e.stopPropagation();
         handleNext();
-      } else if (isCredibilitySlide) {
+      } else if (isCredibilitySlide || isNoveltySlide) {
         const numeric = Number.parseInt(e.key, 10);
-        if (!Number.isNaN(numeric) && numeric >= 1 && numeric <= 7) {
+        if (!Number.isNaN(numeric) && numeric >= 1 && numeric <= 5) {
           e.preventDefault();
-          setCredibilitySlider(numeric);
+          if (isCredibilitySlide) {
+            setCredibilitySlider(numeric);
+          } else if (isNoveltySlide) {
+            setNoveltySlider(numeric);
+          }
         }
       }
     };
@@ -414,6 +421,7 @@ export default function ArticleDetail() {
   useEffect(() => {
     setCurrentSlide(0);
     setCredibilitySlider(undefined);
+    setNoveltySlider(undefined);
   }, [slides.length]);
 
   const handleQuestionAnswer = useCallback((questionIndex: number, answerIndex: number) => {
@@ -682,17 +690,37 @@ export default function ArticleDetail() {
                     />
                   )}
 
+                  {currentSlideDescriptor?.type === "novelty-scale" && (
+                    <AnnotationSlide
+                      question="Jak moc byly pro mne informace z článku nové?"
+                      value={noveltySlider}
+                      onChange={(value) => setNoveltySlider(value)}
+                      min={1}
+                      max={5}
+                      labels={{ 1: "Zcela nové", 3: "Částečně známé", 5: "Zcela známé" }}
+                      showKeyboardHint
+                      showStepMarkers
+                      topLeftLabel="Otázka 2"
+                      dataQuestionKind="novelty-scale"
+                      dataQuestionNumber={2}
+                      dataOptionCount={5}
+                    />
+                  )}
+
                   {currentSlideDescriptor?.type === "credibility-scale" && (
                     <AnnotationSlide
                       question="Nakolik je pro vás tento článek důvěryhodný?"
                       value={credibilitySlider}
                       onChange={(value) => setCredibilitySlider(value)}
-                      labels={{ 1: "Zcela nedůvěryhodný", 4: "Nedokážu posoudit", 7: "Zcela důvěryhodný" }}
+                      min={1}
+                      max={5}
+                      labels={{ 1: "Zcela nedůvěryhodný", 3: "Nedokážu posoudit", 5: "Zcela důvěryhodný" }}
                       showKeyboardHint
+                      showStepMarkers
                       topLeftLabel="Otázka 3"
                       dataQuestionKind="credibility-scale"
                       dataQuestionNumber={3}
-                      dataOptionCount={7}
+                      dataOptionCount={5}
                     />
                   )}
 

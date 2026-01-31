@@ -9,6 +9,7 @@ interface AnnotationSlideProps {
   step?: number;
   labels?: { [key: number]: string };
   showKeyboardHint?: boolean;
+  showStepMarkers?: boolean;
   topLeftLabel?: string;
   dataQuestionKind?: string;
   dataQuestionNumber?: number;
@@ -24,6 +25,7 @@ export default function AnnotationSlide({
   step = 1,
   labels,
   showKeyboardHint = false,
+  showStepMarkers = false,
   topLeftLabel,
   dataQuestionKind,
   dataQuestionNumber,
@@ -31,7 +33,7 @@ export default function AnnotationSlide({
 }: AnnotationSlideProps) {
   return (
     <div
-      className="flex h-full w-full flex-col justify-start gap-5 rounded-lg border border-separator/40 bg-white/80 px-5 py-4 md:px-8 md:py-6"
+      className="flex h-full w-full flex-col justify-start gap-5 rounded-lg bg-white/80 px-5 py-4"
       data-question-kind={dataQuestionKind}
       data-question-number={dataQuestionNumber}
       data-option-count={dataOptionCount}
@@ -70,14 +72,33 @@ export default function AnnotationSlide({
           <span className="ml-2 text-muted-foreground">/ {max}</span>
         </div>
 
-        <Slider
-          value={value ? [value] : [min]}
-          min={min}
-          max={max}
-          step={step}
-          onValueChange={(vals) => onChange(vals[0])}
-          className="py-4"
-        />
+        <div className="relative">
+          <Slider
+            value={value ? [value] : [min]}
+            min={min}
+            max={max}
+            step={step}
+            onValueChange={(vals) => onChange(vals[0])}
+            className="py-4"
+          />
+
+          {showStepMarkers && (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-between">
+              {Array.from({ length: max - min + 1 }, (_, idx) => idx + min).map((num) => (
+                <span
+                  key={`step-marker-${num}`}
+                  className={
+                    value === num
+                      ? "inline-flex h-7 w-7 items-center justify-center rounded-full border-[3px] border-primary bg-primary text-xs font-semibold text-primary-foreground"
+                      : "inline-flex h-7 w-7 items-center justify-center rounded-full border-[3px] border-primary bg-white text-xs font-semibold text-muted-foreground"
+                  }
+                >
+                  {num}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="flex justify-between text-xs text-muted-foreground md:text-sm">
           <span>{labels?.[min] ?? min}</span>
