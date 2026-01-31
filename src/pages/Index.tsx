@@ -2,13 +2,13 @@ import NewsCard from "@/components/NewsCard";
 import NewsHeader from "@/components/NewsHeader";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -183,7 +183,7 @@ const Index = () => {
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "ArrowRight") {
+        if (event.key === " ") {
         event.preventDefault();
         navigate(`/article/${firstArticleId}`);
       }
@@ -267,7 +267,7 @@ const Index = () => {
         <div className="max-w-3xl mx-auto">
           <h2 className="headline-primary mb-8">Hlavní zprávy</h2>
           <p className="mb-4 text-sm text-muted-foreground">
-            Stiskněte klávesu <kbd className="rounded-md border border-border bg-muted/40 px-1.5 py-[2px] text-[11px] font-semibold text-foreground shadow-sm">→</kbd> pro otevření článku.
+            Stiskněte klávesu <kbd className="rounded-md border border-border bg-muted/40 px-1.5 py-[2px] text-[11px] font-semibold text-foreground shadow-sm">MEZERNÍK</kbd> pro otevření článku.
           </p>
           <div>
             {articlesForRendering.map((article) => {

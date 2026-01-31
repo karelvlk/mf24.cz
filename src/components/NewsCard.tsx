@@ -68,21 +68,6 @@ export default function NewsCard({
           muted && "opacity-20 grayscale blur-sm select-none"
         )}
       >
-        {orderLabel && (
-          <span className="badge badge-neutral mb-2 inline-flex">
-            {orderLabel}
-          </span>
-        )}
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          <span className="category-badge text-xs">
-            {categoryLabels[article.category]}
-          </span>
-          {/* {contextBadges.map((badge) => (
-            <span key={badge.id} className={badge.className}>
-              {badge.label}
-            </span>
-          ))} */}
-        </div>
         <h3 className="headline-secondary mb-2">
           {article.title}
         </h3>

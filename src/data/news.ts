@@ -517,8 +517,8 @@ const mapCsvToArticles = (rows: CsvRow[]): NewsArticle[] =>
             {
               question: row.question,
               answers: [
-                { text: "ANO", is_correct: yesIsCorrect },
-                { text: "NE", is_correct: !yesIsCorrect },
+                { text: "Ano", is_correct: yesIsCorrect },
+                { text: "Ne", is_correct: !yesIsCorrect },
               ],
             },
           ]
@@ -538,7 +538,7 @@ const loadedArticles: NewsArticle[] | null = deziperCsvRaw
   : null;
 
 const groupArticles = (
-  articles: NewsArticle[]
+  articles: NewsArticle[],
 ): Record<string, NewsArticle[]> => {
   const grouped: Record<string, NewsArticle[]> = {
     zdravi: [],

@@ -19,7 +19,7 @@ import { useScreenshotMode } from "@/context/ScreenshotModeContext";
 import { emptyFillerArticles, newsData } from "@/data/news";
 import { useToast } from "@/hooks/use-toast";
 import { paginateArticleContent } from "@/lib/utils";
-import { ArrowLeft, Settings2 } from "lucide-react";
+import { Settings2 } from "lucide-react";
 import type { AnimationEvent as ReactAnimationEvent } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -320,14 +320,10 @@ export default function ArticleDetail() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") {
+        if (e.key === " ") {
         e.preventDefault();
         e.stopPropagation();
         handleNext();
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        e.stopPropagation();
-        handlePrev();
       } else if (isCredibilitySlide) {
         const numeric = Number.parseInt(e.key, 10);
         if (!Number.isNaN(numeric) && numeric >= 1 && numeric <= 7) {
@@ -435,13 +431,6 @@ export default function ArticleDetail() {
         <NewsHeader />
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-3xl mx-auto">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-8 transition-colors"
-            >
-              <ArrowLeft size={16} />
-              Zpět
-            </button>
             <h1 className="headline-primary text-center">Článek nenalezen</h1>
           </div>
         </div>
@@ -634,16 +623,9 @@ export default function ArticleDetail() {
         <main className="flex flex-1 justify-center overflow-hidden px-2 py-2 md:px-3 md:py-4">
           <div className="flex h-full w-full max-w-4xl flex-col gap-2 md:gap-3">
             <div className="flex h-12 flex-none items-center">
-              <button
-                onClick={handleBackClick}
-                className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <ArrowLeft size={16} />
-                Zpět
-              </button>
             </div>
 
-            <article className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-lg bg-white shadow-sm">
+            <article className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-lg bg-white">
               <div className="flex flex-1 min-h-0 flex-col overflow-hidden px-1 py-3 md:px-2">
                 <div
                   ref={textContainerRef}
@@ -737,30 +719,31 @@ export default function ArticleDetail() {
                   )}
                 </div>
 
-                <div className="flex items-center justify-between gap-3 border-t border-separator/40 bg-white/70 px-4 py-4 shadow-sm md:px-6">
+                <div className="flex items-center justify-between gap-3 border-t border-separator/40 bg-white/70 px-4 py-4 md:px-6">
                   <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                    <span>
-                      Strana {Math.min(currentSlide + 1, totalSlides)} / {totalSlides}
-                    </span>
-                    <div className="flex items-center gap-2 text-xs">
-                      <kbd className={KEYCAP_CLASS}>←</kbd>
-                      <span className="normal-case font-medium">zpět</span>
-                      <div className="h-4 w-px bg-border" />
-                      <span className="normal-case font-medium">vpřed</span>
-                      <kbd className={KEYCAP_CLASS}>→</kbd>
+                    <div className="ml-auto flex items-center gap-2 text-xs">
+                      <span className="normal-case font-medium">
+                        Stiskněte klávesu{" "}
+                        <kbd className="rounded-md border border-border bg-muted/40 px-1.5 py-[2px] text-[11px] font-semibold text-foreground shadow-sm">
+                          MEZERNÍK
+                        </kbd>
+                        {" "}pro přechod na další stranu
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 md:ml-auto">
+                  <div className="ml-auto flex items-center gap-2">
                     {slides.map((_, index) => (
                       <span
-                        key={`progress-${index}`}
+                        key={`pagination-${index}`}
                         className={
                           currentSlide === index
-                            ? "block h-3.5 w-3.5 rounded-full bg-primary"
-                            : "block h-2 w-2 rounded-full bg-muted-foreground/50"
+                            ? "inline-flex h-8 w-8 items-center justify-center rounded-md border border-primary bg-primary text-xs font-semibold text-primary-foreground"
+                            : "inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-white/80 text-xs font-semibold text-muted-foreground"
                         }
-                        aria-hidden="true"
-                      />
+                        aria-current={currentSlide === index ? "page" : undefined}
+                      >
+                        {index + 1}
+                      </span>
                     ))}
                   </div>
                 </div>
