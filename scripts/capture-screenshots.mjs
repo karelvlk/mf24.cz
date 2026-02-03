@@ -461,7 +461,7 @@ async function captureQuestionSlide(page, articleId, slideInfo) {
 
   for (const answer of slideInfo.answers) {
     const label = (answer.text ?? "").toLowerCase();
-    const optionLabel = label.includes("ano") ? "s" : label.includes("ne") ? "d" : null;
+    const optionLabel = label.includes("ano") ? "f" : label.includes("ne") ? "j" : null;
     if (!optionLabel) {
       continue;
     }
@@ -498,6 +498,8 @@ async function captureSliderSlide(page, articleId, slideInfo) {
     baseName = "heard";
   } else if (sliderKind === "credibility-scale") {
     baseName = "credibility";
+  } else if (sliderKind === "manipulativeness-scale") {
+    baseName = "manip";
   }
 
   if (!baseName) {

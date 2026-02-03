@@ -266,8 +266,8 @@ const Index = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-3xl mx-auto">
           <h2 className="headline-primary mb-8">Hlavní zprávy</h2>
-          <p className="mb-4 text-sm text-muted-foreground">
-            Stiskněte klávesu <kbd className="rounded-md border border-border bg-muted/40 px-1.5 py-[2px] text-[11px] font-semibold text-foreground shadow-sm">MEZERNÍK</kbd> pro otevření článku.
+          <p className="mb-4 text-lg text-muted-foreground">
+            Stiskněte klávesu <kbd className="rounded-md border border-border bg-muted/40 px-2 py-1 text-base font-semibold text-foreground shadow-sm">MEZERNÍK</kbd> pro otevření článku.
           </p>
           <div>
             {articlesForRendering.map((article) => {

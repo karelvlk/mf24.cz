@@ -38,18 +38,18 @@ export default function AnnotationSlide({
       data-question-number={dataQuestionNumber}
       data-option-count={dataOptionCount}
     >
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-8">
         {(topLeftLabel || showKeyboardHint) && (
-          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-between text-lg font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             {topLeftLabel && <span>{topLeftLabel}</span>}
             {showKeyboardHint && (
-              <div className="flex items-center gap-1 text-[11px] font-medium normal-case">
+              <div className="flex items-center gap-1 text-base font-medium normal-case">
                 <span>Zvolte klávesu</span>
                 <div className="flex items-center gap-1">
                   {Array.from({ length: max - min + 1 }, (_, idx) => idx + min).map((num) => (
                     <kbd
                       key={`slider-key-${num}`}
-                      className="rounded-md border border-border bg-muted/40 px-1.5 py-[2px] font-semibold text-foreground shadow-sm"
+                      className="rounded-md border border-border bg-muted/40 px-2 py-1 text-base font-semibold text-foreground shadow-sm"
                     >
                       {num}
                     </kbd>
@@ -59,19 +59,12 @@ export default function AnnotationSlide({
             )}
           </div>
         )}
-        <h3 className="text-base font-semibold text-foreground md:text-lg">
+        <h3 className="text-xl font-semibold text-foreground md:text-2xl">
           {question}
         </h3>
       </div>
 
-      <div className="flex flex-col gap-6 px-4 md:px-12">
-        <div className="flex items-center justify-center">
-          <span className="text-4xl font-bold text-primary">
-            {value ?? "-"}
-          </span>
-          <span className="ml-2 text-muted-foreground">/ {max}</span>
-        </div>
-
+      <div className="flex flex-col gap-6 px-4 md:px-12 pt-[120px]">
         <div className="relative">
           <Slider
             value={value ? [value] : [min]}
@@ -89,8 +82,8 @@ export default function AnnotationSlide({
                   key={`step-marker-${num}`}
                   className={
                     value === num
-                      ? "inline-flex h-7 w-7 items-center justify-center rounded-full border-[3px] border-primary bg-primary text-xs font-semibold text-primary-foreground"
-                      : "inline-flex h-7 w-7 items-center justify-center rounded-full border-[3px] border-primary bg-white text-xs font-semibold text-muted-foreground"
+                      ? "inline-flex h-12 w-12 items-center justify-center rounded-full border-[4px] border-primary bg-primary text-xl font-semibold text-primary-foreground"
+                      : "inline-flex h-12 w-12 items-center justify-center rounded-full border-[4px] border-primary bg-white text-xl font-semibold text-muted-foreground"
                   }
                 >
                   {num}
@@ -100,7 +93,7 @@ export default function AnnotationSlide({
           )}
         </div>
 
-        <div className="flex justify-between text-xs text-muted-foreground md:text-sm">
+        <div className="flex justify-between text-base text-muted-foreground md:text-lg">
           <span>{labels?.[min] ?? min}</span>
           <span>{labels?.[Math.floor((min + max) / 2)] ?? Math.floor((min + max) / 2)}</span>
           <span>{labels?.[max] ?? max}</span>

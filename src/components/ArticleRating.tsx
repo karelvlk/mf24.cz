@@ -82,20 +82,20 @@ export default function ArticleRating({
   return (
     <div className="flex h-full w-full flex-col gap-4 rounded-lg bg-white/80 px-5 py-4">
       <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        <div className="flex items-center justify-between text-lg font-semibold uppercase tracking-[0.12em] text-muted-foreground">
           <span>Hodnocení</span>
-          <div className="flex items-center gap-1 text-[11px] font-medium normal-case">
+          <div className="flex items-center gap-1 text-base font-medium normal-case">
             <span>Zvolte klávesu</span>
             <div className="flex items-center gap-1">
               {answerKeys.map((key) => (
-                <kbd key={`rating-key-${key}`} className={KEYCAP_CLASS}>
+                <kbd key={`rating-key-${key}`} className="rounded-md border border-border bg-muted/40 px-2 py-1 text-base font-semibold text-foreground shadow-sm">
                   {key}
                 </kbd>
               ))}
             </div>
           </div>
         </div>
-        <p className="text-base font-semibold text-foreground md:text-lg">
+        <p className="text-xl font-semibold text-foreground md:text-2xl">
           Ohodnoťte věrohodnost článku
         </p>
       </div>

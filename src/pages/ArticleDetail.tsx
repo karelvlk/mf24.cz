@@ -24,11 +24,13 @@ import type { AnimationEvent as ReactAnimationEvent } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-const DEFAULT_FONT_SIZE = 30;
+const DEFAULT_FONT_SIZE = 36;
 const DEFAULT_IS_MONOSPACE = false;
-const DEFAULT_LINE_HEIGHT = 2.0;
+const DEFAULT_LINE_HEIGHT = 2.5;
 const DEFAULT_CONTENT_WIDTH = 1024;
 const DEFAULT_IS_JUSTIFIED = true;
+const DEFAULT_MARGIN_TOP = 50;
+const DEFAULT_MARGIN_BOTTOM = 0;
 
 const MONOSPACE_FONT_STACK =
   'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
@@ -41,6 +43,7 @@ type SlideDescriptor =
   | { type: "question"; index: number }
   | { type: "credibility-scale" }
   | { type: "novelty-scale" }
+  | { type: "manipulativeness-scale" }
   | { type: "heard-question" }
   | { type: "annotation-credibility" }
   | { type: "annotation-manipulativeness" };
@@ -55,6 +58,8 @@ export default function ArticleDetail() {
   const [fontSize, setFontSize] = useState(DEFAULT_FONT_SIZE);
   const [lineHeight, setLineHeight] = useState(DEFAULT_LINE_HEIGHT);
   const [contentWidth, setContentWidth] = useState(DEFAULT_CONTENT_WIDTH);
+  const [marginTop, setMarginTop] = useState(DEFAULT_MARGIN_TOP);
+  const [marginBottom, setMarginBottom] = useState(DEFAULT_MARGIN_BOTTOM);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [animationState, setAnimationState] = useState<"idle" | "enter" | "exit">("idle");
   const [shouldReduceMotion, setShouldReduceMotion] = useState(false);
@@ -67,6 +72,7 @@ export default function ArticleDetail() {
   const [annotationAnswers, setAnnotationAnswers] = useState<{ credibility?: number; manipulativeness?: number }>({});
   const [credibilitySlider, setCredibilitySlider] = useState<number | undefined>(undefined);
   const [noveltySlider, setNoveltySlider] = useState<number | undefined>(undefined);
+  const [manipulativenessSlider, setManipulativenessSlider] = useState<number | undefined>(undefined);
   const [pages, setPages] = useState<string[]>([""]);
 
   // Find article in all categories
@@ -174,6 +180,12 @@ export default function ArticleDetail() {
       if (typeof parsed.isJustified === "boolean") {
         setIsJustified(parsed.isJustified);
       }
+      if (typeof parsed.marginTop === "number" && Number.isFinite(parsed.marginTop)) {
+        setMarginTop(Math.min(200, Math.max(0, Math.round(parsed.marginTop))));
+      }
+      if (typeof parsed.marginBottom === "number" && Number.isFinite(parsed.marginBottom)) {
+        setMarginBottom(Math.min(200, Math.max(0, Math.round(parsed.marginBottom))));
+      }
     } catch (error) {
       console.error("Failed to load reader settings", error);
     }
@@ -190,10 +202,12 @@ export default function ArticleDetail() {
       contentWidth,
       isMonospace,
       isJustified,
+      marginTop,
+      marginBottom,
     };
 
     localStorage.setItem(READER_SETTINGS_STORAGE_KEY, JSON.stringify(payload));
-  }, [fontSize, isMonospace, isJustified, lineHeight, contentWidth]);
+  }, [fontSize, isMonospace, isJustified, lineHeight, contentWidth, marginTop, marginBottom]);
 
   useEffect(() => {
     const computedPages = paginateArticleContent(articleBody, {
@@ -230,6 +244,9 @@ export default function ArticleDetail() {
 
     // Credibility slider second
     computed.push({ type: "credibility-scale" });
+
+    // Manipulativeness slider third
+    computed.push({ type: "manipulativeness-scale" });
 
     return computed;
   }, [mode, pages, questionItems]);
@@ -332,6 +349,7 @@ export default function ArticleDetail() {
   const showQuestionHints = currentQuestionKeys.length > 0;
   const isCredibilitySlide = currentSlideDescriptor?.type === "credibility-scale";
   const isNoveltySlide = currentSlideDescriptor?.type === "novelty-scale";
+  const isManipulativenessSlide = currentSlideDescriptor?.type === "manipulativeness-scale";
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -339,7 +357,7 @@ export default function ArticleDetail() {
         e.preventDefault();
         e.stopPropagation();
         handleNext();
-      } else if (isCredibilitySlide || isNoveltySlide) {
+      } else if (isCredibilitySlide || isNoveltySlide || isManipulativenessSlide) {
         const numeric = Number.parseInt(e.key, 10);
         if (!Number.isNaN(numeric) && numeric >= 1 && numeric <= 5) {
           e.preventDefault();
@@ -347,6 +365,8 @@ export default function ArticleDetail() {
             setCredibilitySlider(numeric);
           } else if (isNoveltySlide) {
             setNoveltySlider(numeric);
+          } else if (isManipulativenessSlide) {
+            setManipulativenessSlider(numeric);
           }
         }
       }
@@ -479,6 +499,8 @@ export default function ArticleDetail() {
     setContentWidth(DEFAULT_CONTENT_WIDTH);
     setIsMonospace(DEFAULT_IS_MONOSPACE);
     setIsJustified(DEFAULT_IS_JUSTIFIED);
+    setMarginTop(DEFAULT_MARGIN_TOP);
+    setMarginBottom(DEFAULT_MARGIN_BOTTOM);
   };
 
   const completeNavigation = () => {
@@ -637,6 +659,48 @@ export default function ArticleDetail() {
                   step={50}
                 />
               </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="article-margin-top">Horní okraj</Label>
+                  <span className="text-sm font-medium text-foreground">
+                    {marginTop}px
+                  </span>
+                </div>
+                <Slider
+                  id="article-margin-top"
+                  value={[marginTop]}
+                  onValueChange={(value) => {
+                    const next = value[0];
+                    if (typeof next === "number" && Number.isFinite(next)) {
+                      setMarginTop(Math.round(next));
+                    }
+                  }}
+                  min={0}
+                  max={200}
+                  step={10}
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="article-margin-bottom">Dolní okraj</Label>
+                  <span className="text-sm font-medium text-foreground">
+                    {marginBottom}px
+                  </span>
+                </div>
+                <Slider
+                  id="article-margin-bottom"
+                  value={[marginBottom]}
+                  onValueChange={(value) => {
+                    const next = value[0];
+                    if (typeof next === "number" && Number.isFinite(next)) {
+                      setMarginBottom(Math.round(next));
+                    }
+                  }}
+                  min={0}
+                  max={200}
+                  step={10}
+                />
+              </div>
               <p className="text-xs text-muted-foreground">
                 Rozložení textu se automaticky přizpůsobí velikosti obrazovky a nastavení písma.
               </p>
@@ -679,14 +743,18 @@ export default function ArticleDetail() {
         </Dialog>
         <main className="flex flex-1 justify-center overflow-hidden px-2 py-2 md:px-3 md:py-4">
           <div className="flex h-full w-full flex-col gap-2 md:gap-3" style={{ maxWidth: `${contentWidth}px` }}>
-            <div className="flex h-12 flex-none items-center">
-            </div>
+            {/* <div className="flex h-12 flex-none items-center">
+            </div> */}
 
             <article className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-lg bg-white">
               <div className="flex flex-1 min-h-0 flex-col overflow-hidden px-1 py-3 md:px-2">
                 <div
                   ref={textContainerRef}
                   className="flex flex-1 flex-col gap-4 overflow-auto rounded-lg border border-separator/40 bg-white px-4 py-4 shadow-sm md:px-6 md:py-5"
+                  style={{
+                    marginTop: `${marginTop}px`,
+                    marginBottom: `${marginBottom}px`
+                  }}
                 >
                   {currentSlideDescriptor?.type === "page" &&
                     typeof currentSlideDescriptor.index === "number" && (
@@ -699,7 +767,10 @@ export default function ArticleDetail() {
                           textAlign: isJustified ? 'justify' : 'left'
                         }}
                       >
-                        {(pages[currentSlideDescriptor.index] ?? "").replace(/\n+/g, " ").trim()}
+                        {(pages[currentSlideDescriptor.index] ?? "")
+                          .replace(/\n+/g, " ")
+                          .replace(/\b([kKsSvVzZ])\s+/g, "$1\u00A0")
+                          .trim()}
                       </p>
                     )}
 
@@ -742,12 +813,12 @@ export default function ArticleDetail() {
 
                   {currentSlideDescriptor?.type === "novelty-scale" && (
                     <AnnotationSlide
-                      question="Jak moc byly pro mne informace z článku nové?"
+                      question="Na kolik jsou pro vás informace obsažené v článku známé?"
                       value={noveltySlider}
                       onChange={(value) => setNoveltySlider(value)}
                       min={1}
                       max={5}
-                      labels={{ 1: "Zcela nové", 3: "Částečně známé", 5: "Zcela známé" }}
+                      labels={{ 1: "Zcela neznámé", 3: "Ani známé, ani neznámé", 5: "Zcela známé" }}
                       showKeyboardHint
                       showStepMarkers
                       topLeftLabel="Otázka 2"
@@ -764,7 +835,7 @@ export default function ArticleDetail() {
                       onChange={(value) => setCredibilitySlider(value)}
                       min={1}
                       max={5}
-                      labels={{ 1: "Zcela nedůvěryhodný", 3: "Nedokážu posoudit", 5: "Zcela důvěryhodný" }}
+                      labels={{ 1: "Zcela nevěrohodný", 3: "Ani nevěrohodný, ani věrohodný", 5: "Zcela věrohodný" }}
                       showKeyboardHint
                       showStepMarkers
                       topLeftLabel="Otázka 3"
@@ -774,9 +845,26 @@ export default function ArticleDetail() {
                     />
                   )}
 
+                  {currentSlideDescriptor?.type === "manipulativeness-scale" && (
+                    <AnnotationSlide
+                      question="Na kolik je z vašeho pohledu tento článek manipulativní?"
+                      value={manipulativenessSlider}
+                      onChange={(value) => setManipulativenessSlider(value)}
+                      min={1}
+                      max={5}
+                      labels={{ 1: "Rozhodně nemanipulativní", 3: "Ani nemanipulativní, ani manipulativní", 5: "Rozhodně manipulativní" }}
+                      showKeyboardHint
+                      showStepMarkers
+                      topLeftLabel="Otázka 4"
+                      dataQuestionKind="manipulativeness-scale"
+                      dataQuestionNumber={4}
+                      dataOptionCount={5}
+                    />
+                  )}
+
                   {currentSlideDescriptor?.type === "annotation-credibility" && (
                     <AnnotationSlide
-                      question="Ohodnoťte věrohodnost článku"
+                      question="Na kolik je pro vás tento článek věrohodný?"
                       value={annotationAnswers.credibility}
                       onChange={(value) =>
                         setAnnotationAnswers((prev) => ({ ...prev, credibility: value }))
@@ -799,10 +887,10 @@ export default function ArticleDetail() {
 
                 <div className="flex items-center justify-between gap-3 border-t border-separator/40 bg-white/70 px-4 py-4 md:px-6">
                   <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                    <div className="ml-auto flex items-center gap-2 text-xs">
+                    <div className="ml-auto flex items-center gap-2 text-lg">
                       <span className="normal-case font-medium">
                         Stiskněte klávesu{" "}
-                        <kbd className="rounded-md border border-border bg-muted/40 px-1.5 py-[2px] text-[11px] font-semibold text-foreground shadow-sm">
+                        <kbd className="rounded-md border border-border bg-muted/40 px-2 py-1 text-base font-semibold text-foreground shadow-sm">
                           MEZERNÍK
                         </kbd>
                         {" "}pro přechod na další stranu
@@ -825,6 +913,34 @@ export default function ArticleDetail() {
                             {index + 1}
                           </span>
                         ))}
+                      </div>
+                    )}
+                  {(currentSlideDescriptor?.type === "question" ||
+                    currentSlideDescriptor?.type === "novelty-scale" ||
+                    currentSlideDescriptor?.type === "credibility-scale" ||
+                    currentSlideDescriptor?.type === "manipulativeness-scale") && (
+                      <div className="ml-auto flex items-center gap-2">
+                        {[1, 2, 3, 4].map((num) => {
+                          const isActive =
+                            (currentSlideDescriptor?.type === "question" && num === 1) ||
+                            (currentSlideDescriptor?.type === "novelty-scale" && num === 2) ||
+                            (currentSlideDescriptor?.type === "credibility-scale" && num === 3) ||
+                            (currentSlideDescriptor?.type === "manipulativeness-scale" && num === 4);
+
+                          return (
+                            <span
+                              key={`pagination-question-${num}`}
+                              className={
+                                isActive
+                                  ? "inline-flex h-8 w-8 items-center justify-center rounded-md border border-primary bg-primary text-xs font-semibold text-primary-foreground"
+                                  : "inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-white/80 text-xs font-semibold text-muted-foreground"
+                              }
+                              aria-current={isActive ? "page" : undefined}
+                            >
+                              {num}
+                            </span>
+                          );
+                        })}
                       </div>
                     )}
                 </div>

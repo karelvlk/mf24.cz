@@ -69,7 +69,7 @@ export default function NewsCard({
         )}
       >
         <h3 className="headline-secondary mb-2">
-          {article.title}
+          Článek
         </h3>
         <p className="body-text text-sm text-muted-foreground line-clamp-1">
           {article.perex}
@@ -93,7 +93,7 @@ export default function NewsCard({
           </span>
         </div>
         <h1 className="headline-primary mb-6">
-          {article.title}
+          Článek
         </h1>
         <p className="body-text text-lg leading-relaxed">
           {article.perex}
@@ -122,7 +122,7 @@ export default function NewsCard({
     return (
       <article className="py-3 border-b border-separator last:border-b-0">
         <h3 className="headline-tertiary mb-2 hover:text-primary cursor-pointer transition-colors">
-          {article.title}
+          Článek
         </h3>
         <div className="flex items-center space-x-2 meta-text text-xs">
           <span>{article.published}</span>
@@ -139,7 +139,7 @@ export default function NewsCard({
         </span>
       </div>
       <h2 className="headline-secondary mb-3 hover:text-primary cursor-pointer transition-colors">
-        {article.title}
+        Článek
       </h2>
       <p className="body-text leading-relaxed mb-2">
         {article.perex}
