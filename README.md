@@ -118,6 +118,15 @@ This file is automatically created when the first data is saved.
   ```
   Output: `debug/*.debug.png` inside that article folder, showing word (blue) and letter (orange) boxes.
 
+- Sort TSV screenshot index by CSV article order:
+  ```bash
+  node scripts/sort-tsv-by-order.mjs --tsv <input.tsv> --order <order.csv> --out <output.tsv>
+  ```
+  This script reads a TSV file with article metadata and reorders it according to the "index" column in a CSV file. It will:
+  - Skip articles that exist in the CSV but not in the TSV (with logging)
+  - Raise an error if an article exists in the TSV but not in the CSV index column
+  - Output a new TSV file with rows sorted by the CSV order
+
 ## Project Structure
 
 - `src/pages`: Main application pages (Index, ArticleDetail, etc.).

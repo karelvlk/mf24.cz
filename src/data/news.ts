@@ -369,6 +369,7 @@ export const defaultNewsData: Record<string, NewsArticle[]> = {
 
 type CsvRow = {
   index: string;
+  "index-of-valid-only"?: string;
   pseudotitle?: string;
   title?: string;
   source?: string;
@@ -472,6 +473,7 @@ const csvToRows = (csvText?: string): CsvRow[] => {
   const getIdx = (name: string) => header.indexOf(name);
 
   const idxIndex = getIdx("index");
+  const idxIndexOfValidOnly = getIdx("index-of-valid-only");
   const idxPseudotitle = getIdx("pseudotitle");
   const idxTitle = getIdx("title");
   const idxSource = getIdx("source");
@@ -483,27 +485,55 @@ const csvToRows = (csvText?: string): CsvRow[] => {
   const idxDezinfo = getIdx("dezinfo");
   const idxInvalid = getIdx("is_invalid");
 
-  return table.slice(1).map((row) => ({
-    index: row[idxIndex] ?? "",
-    pseudotitle: idxPseudotitle === -1 ? undefined : row[idxPseudotitle],
-    title: idxTitle === -1 ? undefined : row[idxTitle],
-    source: idxSource === -1 ? undefined : row[idxSource],
-    content: idxContent === -1 ? undefined : row[idxContent],
-    question: idxQuestion === -1 ? undefined : row[idxQuestion],
-    answer: idxAnswer === -1 ? undefined : row[idxAnswer],
-    theme: idxTheme === -1 ? undefined : row[idxTheme],
-    manip: idxManip === -1 ? undefined : row[idxManip],
-    dezinfo: idxDezinfo === -1 ? undefined : row[idxDezinfo],
-    is_invalid: idxInvalid === -1 ? undefined : row[idxInvalid],
-  }));
+  // Filter out rows where is_invalid == 'TRUE' and map to CsvRow
+  const validRows = table
+    .slice(1)
+    .filter((row) => {
+      const isInvalid = idxInvalid === -1 ? undefined : row[idxInvalid];
+      return !parseBoolean(isInvalid);
+    })
+    .map((row) => ({
+      index: row[idxIndex] ?? "",
+      "index-of-valid-only":
+        idxIndexOfValidOnly === -1 ? undefined : row[idxIndexOfValidOnly],
+      pseudotitle: idxPseudotitle === -1 ? undefined : row[idxPseudotitle],
+      title: idxTitle === -1 ? undefined : row[idxTitle],
+      source: idxSource === -1 ? undefined : row[idxSource],
+      content: idxContent === -1 ? undefined : row[idxContent],
+      question: idxQuestion === -1 ? undefined : row[idxQuestion],
+      answer: idxAnswer === -1 ? undefined : row[idxAnswer],
+      theme: idxTheme === -1 ? undefined : row[idxTheme],
+      manip: idxManip === -1 ? undefined : row[idxManip],
+      dezinfo: idxDezinfo === -1 ? undefined : row[idxDezinfo],
+      is_invalid: idxInvalid === -1 ? undefined : row[idxInvalid],
+    }));
+
+  // Check for duplicates in index-of-valid-only
+  if (idxIndexOfValidOnly !== -1) {
+    const seenIndices = new Set<string>();
+    for (const row of validRows) {
+      const idx = row["index-of-valid-only"];
+      if (idx && idx.trim()) {
+        if (seenIndices.has(idx)) {
+          throw new Error(`Duplicate index-of-valid-only found: "${idx}"`);
+        }
+        seenIndices.add(idx);
+      }
+    }
+  }
+
+  return validRows;
 };
 
 const mapCsvToArticles = (rows: CsvRow[]): NewsArticle[] =>
   rows.map((row, idx) => {
     const yesIsCorrect = parseBoolean(row.answer);
+    // Use index-of-valid-only if available, otherwise fall back to index
+    const articleId =
+      row["index-of-valid-only"]?.trim() || row.index || `${idx + 1}`;
 
     return {
-      id: row.index || `${idx + 1}`,
+      id: articleId,
       title: row.title?.trim() || row.pseudotitle?.trim() || "Bez názvu",
       perex: "Klikněte pro zobrazení článku...",
       content: row.content ?? "",

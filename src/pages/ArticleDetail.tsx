@@ -29,8 +29,8 @@ const DEFAULT_IS_MONOSPACE = false;
 const DEFAULT_LINE_HEIGHT = 2.5;
 const DEFAULT_CONTENT_WIDTH = 1024;
 const DEFAULT_IS_JUSTIFIED = true;
-const DEFAULT_MARGIN_TOP = 50;
-const DEFAULT_MARGIN_BOTTOM = 0;
+const DEFAULT_MARGIN_TOP = 120;
+const DEFAULT_MARGIN_BOTTOM = 80;
 
 const MONOSPACE_FONT_STACK =
   'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
