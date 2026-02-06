@@ -146,15 +146,42 @@ async function main() {
     console.log(`\nTSV has ${tsvRows.length} articles`);
     console.log(`Order has ${orderIndices.length} entries`);
 
+    // Deduplicate order indices, keeping only first appearance of each article_id
+    const seenOrderIndices = new Set();
+    const uniqueOrderIndices = [];
+    const duplicateOrderArticles = [];
+    for (const index of orderIndices) {
+      if (seenOrderIndices.has(index)) {
+        duplicateOrderArticles.push(index);
+      } else {
+        seenOrderIndices.add(index);
+        uniqueOrderIndices.push(index);
+      }
+    }
+
+    if (duplicateOrderArticles.length > 0) {
+      console.log(`Warning: Found duplicate article IDs in order CSV (keeping first appearance): ${duplicateOrderArticles.join(", ")}`);
+    }
+
     // Create a map of article_id to row for quick lookup
+    // Keep only the first appearance of each article_id
     const tsvMap = new Map();
+    const duplicateArticles = [];
     for (const row of tsvRows) {
-      tsvMap.set(row.article_id, row);
+      if (tsvMap.has(row.article_id)) {
+        duplicateArticles.push(row.article_id);
+      } else {
+        tsvMap.set(row.article_id, row);
+      }
+    }
+
+    if (duplicateArticles.length > 0) {
+      console.log(`\nWarning: Found duplicate article IDs in TSV (keeping first appearance): ${duplicateArticles.join(", ")}`);
     }
 
     // Check if all TSV articles are in the order
     const tsvArticleIds = new Set(tsvRows.map((r) => r.article_id));
-    const orderArticleIds = new Set(orderIndices);
+    const orderArticleIds = new Set(uniqueOrderIndices);
 
     const missingInOrder = Array.from(tsvArticleIds).filter(
       (id) => !orderArticleIds.has(id)
@@ -170,7 +197,7 @@ async function main() {
     const skippedArticles = [];
     const sortedRows = [];
 
-    for (const index of orderIndices) {
+    for (const index of uniqueOrderIndices) {
       if (tsvMap.has(index)) {
         sortedRows.push(tsvMap.get(index));
       } else {

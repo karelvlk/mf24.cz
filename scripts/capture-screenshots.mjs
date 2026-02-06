@@ -562,7 +562,8 @@ async function captureArticleSlides(page, articleId, articlePosition) {
       continue;
     }
 
-    if (Number.isFinite(slideInfo.totalPages)) {
+    // Only count pages for content slides (not questions or sliders)
+    if (Number.isFinite(slideInfo.totalPages) && !slideInfo.isQuestion && !slideInfo.isSlider) {
       maxPages = slideInfo.totalPages;
     }
 

@@ -7,7 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 
 export function calculateReadingTime(
   text: string,
-  wordsPerMinute = 220
+  wordsPerMinute = 220,
 ): number {
   if (!text) {
     return 1;
@@ -35,7 +35,7 @@ interface PaginateArticleOptions {
 
 export function paginateArticleContent(
   text: string,
-  options: PaginateArticleOptions = {}
+  options: PaginateArticleOptions = {},
 ): string[] {
   const {
     charsPerLine = 60,
@@ -45,7 +45,7 @@ export function paginateArticleContent(
     containerWidth,
     containerHeight,
     totalPages,
-    fontFamily
+    fontFamily,
   } = options;
 
   if (!text) {
@@ -57,23 +57,51 @@ export function paginateArticleContent(
     return [""];
   }
 
-  const segments =
-    sanitized
+  // Try splitting by <br> tags with surrounding whitespace first
+  let segments = sanitized
+    .split(/\s*<br\s*\/?>\s*/i)
+    .map((piece) => piece.trim())
+    .filter(Boolean);
+
+  // If we don't have enough segments from <br> tags (need at least 2 for meaningful pagination),
+  // fall back to splitting by fullstops and commas
+  if (segments.length < 2) {
+    segments = sanitized
       .split(/(?<=[.,])\s+/)
       .map((piece) => piece.trim())
-      .filter(Boolean) ?? [sanitized];
+      .filter(Boolean);
+  }
 
-  if (typeof totalPages === "number" && Number.isFinite(totalPages) && totalPages > 0) {
+  // Final fallback to the original text if we still have nothing
+  if (segments.length === 0) {
+    segments = [sanitized];
+  }
+
+  if (
+    typeof totalPages === "number" &&
+    Number.isFinite(totalPages) &&
+    totalPages > 0
+  ) {
     const targetPages = Math.max(1, Math.floor(totalPages));
-    const segmentsPerPage = Math.max(1, Math.ceil(segments.length / targetPages));
+    const segmentsPerPage = Math.max(
+      1,
+      Math.ceil(segments.length / targetPages),
+    );
     const pages: string[] = [];
 
     for (let index = 0; index < segments.length; index += segmentsPerPage) {
-      pages.push(segments.slice(index, index + segmentsPerPage).join(" ").trim());
+      pages.push(
+        segments
+          .slice(index, index + segmentsPerPage)
+          .join(" ")
+          .trim(),
+      );
     }
 
     if (pages.length < targetPages) {
-      pages.push(...Array.from({ length: targetPages - pages.length }, () => ""));
+      pages.push(
+        ...Array.from({ length: targetPages - pages.length }, () => ""),
+      );
     }
 
     return pages;
@@ -158,15 +186,24 @@ export function paginateArticleContent(
   }
 
   const estimatedLinesPerPage =
-    typeof containerHeight === "number" && Number.isFinite(containerHeight) && fontSize > 0
+    typeof containerHeight === "number" &&
+    Number.isFinite(containerHeight) &&
+    fontSize > 0
       ? Math.max(1, Math.floor(containerHeight / (fontSize * lineHeight)))
       : linesPerPage;
 
   const averageCharWidthFactor =
-    typeof fontFamily === "string" && fontFamily.toLowerCase().includes("mono") ? 0.6 : 0.55;
+    typeof fontFamily === "string" && fontFamily.toLowerCase().includes("mono")
+      ? 0.6
+      : 0.55;
   const estimatedCharsPerLine =
-    typeof containerWidth === "number" && Number.isFinite(containerWidth) && fontSize > 0
-      ? Math.max(20, Math.floor(containerWidth / (fontSize * averageCharWidthFactor)))
+    typeof containerWidth === "number" &&
+    Number.isFinite(containerWidth) &&
+    fontSize > 0
+      ? Math.max(
+          20,
+          Math.floor(containerWidth / (fontSize * averageCharWidthFactor)),
+        )
       : charsPerLine;
 
   const pages: string[] = [];
@@ -176,9 +213,14 @@ export function paginateArticleContent(
   for (const segment of segments) {
     const separator = currentSegments.length ? 1 : 0;
     const tentativeCharCount = currentCharCount + segment.length + separator;
-    const estimatedLines = Math.ceil(tentativeCharCount / estimatedCharsPerLine);
+    const estimatedLines = Math.ceil(
+      tentativeCharCount / estimatedCharsPerLine,
+    );
 
-    if (estimatedLines <= estimatedLinesPerPage || currentSegments.length === 0) {
+    if (
+      estimatedLines <= estimatedLinesPerPage ||
+      currentSegments.length === 0
+    ) {
       currentSegments.push(segment);
       currentCharCount = tentativeCharCount;
     } else {

@@ -83,9 +83,14 @@ export default function QuestionSlide({
             </div>
           </div>
         </div>
-        <p className="text-xl font-semibold text-foreground md:text-2xl">
-          {question.question}
-        </p>
+        <div className="flex flex-col gap-2">
+          <p className="text-xl font-semibold text-foreground md:text-2xl">
+            {question.question.split('?')[0] + '?'}
+          </p>
+          <p className="text-lg text-muted-foreground italic">
+            Odpovídejte pouze na základě přečteného textu.
+          </p>
+        </div>
       </div>
 
       <div className={cn(

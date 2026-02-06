@@ -11,9 +11,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { useExperimentMode } from "@/context/ExperimentModeContext";
 import { useScreenshotMode } from "@/context/ScreenshotModeContext";
 import { emptyFillerArticles, newsData } from "@/data/news";
@@ -28,9 +30,21 @@ const DEFAULT_FONT_SIZE = 36;
 const DEFAULT_IS_MONOSPACE = false;
 const DEFAULT_LINE_HEIGHT = 2.5;
 const DEFAULT_CONTENT_WIDTH = 1024;
-const DEFAULT_IS_JUSTIFIED = true;
+const DEFAULT_IS_JUSTIFIED = false;
 const DEFAULT_MARGIN_TOP = 120;
 const DEFAULT_MARGIN_BOTTOM = 80;
+const DEFAULT_NOVELTY_QUESTION = "Na kolik jsou pro vás informace obsažené v článku známé?";
+const DEFAULT_NOVELTY_LABEL_1 = "Zcela neznámé";
+const DEFAULT_NOVELTY_LABEL_3 = "Ani známé, ani neznámé";
+const DEFAULT_NOVELTY_LABEL_5 = "Zcela známé";
+const DEFAULT_CREDIBILITY_QUESTION = "Nakolik je pro Vás tento článek důvěryhodný?";
+const DEFAULT_CREDIBILITY_LABEL_1 = "Zcela nevěrohodný";
+const DEFAULT_CREDIBILITY_LABEL_3 = "Ani nevěrohodný, ani věrohodný";
+const DEFAULT_CREDIBILITY_LABEL_5 = "Zcela věrohodný";
+const DEFAULT_MANIPULATIVENESS_QUESTION = "Na kolik je z vašeho pohledu tento článek manipulativní?";
+const DEFAULT_MANIPULATIVENESS_LABEL_1 = "Rozhodně nemanipulativní";
+const DEFAULT_MANIPULATIVENESS_LABEL_3 = "Ani nemanipulativní, ani manipulativní";
+const DEFAULT_MANIPULATIVENESS_LABEL_5 = "Rozhodně manipulativní";
 
 const MONOSPACE_FONT_STACK =
   'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
@@ -73,6 +87,18 @@ export default function ArticleDetail() {
   const [credibilitySlider, setCredibilitySlider] = useState<number | undefined>(undefined);
   const [noveltySlider, setNoveltySlider] = useState<number | undefined>(undefined);
   const [manipulativenessSlider, setManipulativenessSlider] = useState<number | undefined>(undefined);
+  const [noveltyQuestionText, setNoveltyQuestionText] = useState(DEFAULT_NOVELTY_QUESTION);
+  const [noveltyLabel1, setNoveltyLabel1] = useState(DEFAULT_NOVELTY_LABEL_1);
+  const [noveltyLabel3, setNoveltyLabel3] = useState(DEFAULT_NOVELTY_LABEL_3);
+  const [noveltyLabel5, setNoveltyLabel5] = useState(DEFAULT_NOVELTY_LABEL_5);
+  const [credibilityQuestionText, setCredibilityQuestionText] = useState(DEFAULT_CREDIBILITY_QUESTION);
+  const [credibilityLabel1, setCredibilityLabel1] = useState(DEFAULT_CREDIBILITY_LABEL_1);
+  const [credibilityLabel3, setCredibilityLabel3] = useState(DEFAULT_CREDIBILITY_LABEL_3);
+  const [credibilityLabel5, setCredibilityLabel5] = useState(DEFAULT_CREDIBILITY_LABEL_5);
+  const [manipulativenessQuestionText, setManipulativenessQuestionText] = useState(DEFAULT_MANIPULATIVENESS_QUESTION);
+  const [manipulativenessLabel1, setManipulativenessLabel1] = useState(DEFAULT_MANIPULATIVENESS_LABEL_1);
+  const [manipulativenessLabel3, setManipulativenessLabel3] = useState(DEFAULT_MANIPULATIVENESS_LABEL_3);
+  const [manipulativenessLabel5, setManipulativenessLabel5] = useState(DEFAULT_MANIPULATIVENESS_LABEL_5);
   const [pages, setPages] = useState<string[]>([""]);
 
   // Find article in all categories
@@ -186,6 +212,42 @@ export default function ArticleDetail() {
       if (typeof parsed.marginBottom === "number" && Number.isFinite(parsed.marginBottom)) {
         setMarginBottom(Math.min(200, Math.max(0, Math.round(parsed.marginBottom))));
       }
+      if (typeof parsed.noveltyQuestionText === "string") {
+        setNoveltyQuestionText(parsed.noveltyQuestionText);
+      }
+      if (typeof parsed.noveltyLabel1 === "string") {
+        setNoveltyLabel1(parsed.noveltyLabel1);
+      }
+      if (typeof parsed.noveltyLabel3 === "string") {
+        setNoveltyLabel3(parsed.noveltyLabel3);
+      }
+      if (typeof parsed.noveltyLabel5 === "string") {
+        setNoveltyLabel5(parsed.noveltyLabel5);
+      }
+      if (typeof parsed.credibilityQuestionText === "string") {
+        setCredibilityQuestionText(parsed.credibilityQuestionText);
+      }
+      if (typeof parsed.credibilityLabel1 === "string") {
+        setCredibilityLabel1(parsed.credibilityLabel1);
+      }
+      if (typeof parsed.credibilityLabel3 === "string") {
+        setCredibilityLabel3(parsed.credibilityLabel3);
+      }
+      if (typeof parsed.credibilityLabel5 === "string") {
+        setCredibilityLabel5(parsed.credibilityLabel5);
+      }
+      if (typeof parsed.manipulativenessQuestionText === "string") {
+        setManipulativenessQuestionText(parsed.manipulativenessQuestionText);
+      }
+      if (typeof parsed.manipulativenessLabel1 === "string") {
+        setManipulativenessLabel1(parsed.manipulativenessLabel1);
+      }
+      if (typeof parsed.manipulativenessLabel3 === "string") {
+        setManipulativenessLabel3(parsed.manipulativenessLabel3);
+      }
+      if (typeof parsed.manipulativenessLabel5 === "string") {
+        setManipulativenessLabel5(parsed.manipulativenessLabel5);
+      }
     } catch (error) {
       console.error("Failed to load reader settings", error);
     }
@@ -204,10 +266,42 @@ export default function ArticleDetail() {
       isJustified,
       marginTop,
       marginBottom,
+      noveltyQuestionText,
+      noveltyLabel1,
+      noveltyLabel3,
+      noveltyLabel5,
+      credibilityQuestionText,
+      credibilityLabel1,
+      credibilityLabel3,
+      credibilityLabel5,
+      manipulativenessQuestionText,
+      manipulativenessLabel1,
+      manipulativenessLabel3,
+      manipulativenessLabel5,
     };
 
     localStorage.setItem(READER_SETTINGS_STORAGE_KEY, JSON.stringify(payload));
-  }, [fontSize, isMonospace, isJustified, lineHeight, contentWidth, marginTop, marginBottom]);
+  }, [
+    fontSize,
+    isMonospace,
+    isJustified,
+    lineHeight,
+    contentWidth,
+    marginTop,
+    marginBottom,
+    noveltyQuestionText,
+    noveltyLabel1,
+    noveltyLabel3,
+    noveltyLabel5,
+    credibilityQuestionText,
+    credibilityLabel1,
+    credibilityLabel3,
+    credibilityLabel5,
+    manipulativenessQuestionText,
+    manipulativenessLabel1,
+    manipulativenessLabel3,
+    manipulativenessLabel5,
+  ]);
 
   useEffect(() => {
     const computedPages = paginateArticleContent(articleBody, {
@@ -353,7 +447,11 @@ export default function ArticleDetail() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === " ") {
+      if (isSettingsOpen) {
+        return;
+      }
+
+      if (e.key === " ") {
         e.preventDefault();
         e.stopPropagation();
         handleNext();
@@ -374,7 +472,7 @@ export default function ArticleDetail() {
 
     window.addEventListener("keydown", handleKeyDown, { capture: true });
     return () => window.removeEventListener("keydown", handleKeyDown, { capture: true });
-  }, [handleNext, handlePrev, isCredibilitySlide]);
+  }, [handleNext, handlePrev, isCredibilitySlide, isManipulativenessSlide, isNoveltySlide, isSettingsOpen]);
 
   useEffect(() => {
     if (screenshotMode) {
@@ -501,6 +599,18 @@ export default function ArticleDetail() {
     setIsJustified(DEFAULT_IS_JUSTIFIED);
     setMarginTop(DEFAULT_MARGIN_TOP);
     setMarginBottom(DEFAULT_MARGIN_BOTTOM);
+    setNoveltyQuestionText(DEFAULT_NOVELTY_QUESTION);
+    setNoveltyLabel1(DEFAULT_NOVELTY_LABEL_1);
+    setNoveltyLabel3(DEFAULT_NOVELTY_LABEL_3);
+    setNoveltyLabel5(DEFAULT_NOVELTY_LABEL_5);
+    setCredibilityQuestionText(DEFAULT_CREDIBILITY_QUESTION);
+    setCredibilityLabel1(DEFAULT_CREDIBILITY_LABEL_1);
+    setCredibilityLabel3(DEFAULT_CREDIBILITY_LABEL_3);
+    setCredibilityLabel5(DEFAULT_CREDIBILITY_LABEL_5);
+    setManipulativenessQuestionText(DEFAULT_MANIPULATIVENESS_QUESTION);
+    setManipulativenessLabel1(DEFAULT_MANIPULATIVENESS_LABEL_1);
+    setManipulativenessLabel3(DEFAULT_MANIPULATIVENESS_LABEL_3);
+    setManipulativenessLabel5(DEFAULT_MANIPULATIVENESS_LABEL_5);
   };
 
   const completeNavigation = () => {
@@ -598,7 +708,7 @@ export default function ArticleDetail() {
               </button>
             </div>
           )}
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Nastavení čtečky</DialogTitle>
               <DialogDescription>
@@ -606,6 +716,121 @@ export default function ArticleDetail() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-6 pt-2">
+              <div className="space-y-6 rounded-lg border border-separator/40 bg-muted/10 px-4 py-4">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-semibold text-foreground">Otázky se škálou (1–5)</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Upravte texty otázek a popisky hodnot 1, 3 a 5 pro všechny články.
+                  </p>
+                </div>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="slider-novelty-question">Otázka 2 – Znění otázky</Label>
+                    <Textarea
+                      id="slider-novelty-question"
+                      value={noveltyQuestionText}
+                      onChange={(event) => setNoveltyQuestionText(event.target.value)}
+                      rows={2}
+                    />
+                    <div className="grid gap-2 md:grid-cols-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="slider-novelty-label-1">Label 1</Label>
+                        <Input
+                          id="slider-novelty-label-1"
+                          value={noveltyLabel1}
+                          onChange={(event) => setNoveltyLabel1(event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="slider-novelty-label-3">Label 3</Label>
+                        <Input
+                          id="slider-novelty-label-3"
+                          value={noveltyLabel3}
+                          onChange={(event) => setNoveltyLabel3(event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="slider-novelty-label-5">Label 5</Label>
+                        <Input
+                          id="slider-novelty-label-5"
+                          value={noveltyLabel5}
+                          onChange={(event) => setNoveltyLabel5(event.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="slider-credibility-question">Otázka 3 – Znění otázky</Label>
+                    <Textarea
+                      id="slider-credibility-question"
+                      value={credibilityQuestionText}
+                      onChange={(event) => setCredibilityQuestionText(event.target.value)}
+                      rows={2}
+                    />
+                    <div className="grid gap-2 md:grid-cols-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="slider-credibility-label-1">Label 1</Label>
+                        <Input
+                          id="slider-credibility-label-1"
+                          value={credibilityLabel1}
+                          onChange={(event) => setCredibilityLabel1(event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="slider-credibility-label-3">Label 3</Label>
+                        <Input
+                          id="slider-credibility-label-3"
+                          value={credibilityLabel3}
+                          onChange={(event) => setCredibilityLabel3(event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="slider-credibility-label-5">Label 5</Label>
+                        <Input
+                          id="slider-credibility-label-5"
+                          value={credibilityLabel5}
+                          onChange={(event) => setCredibilityLabel5(event.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="slider-manipulativeness-question">Otázka 4 – Znění otázky</Label>
+                    <Textarea
+                      id="slider-manipulativeness-question"
+                      value={manipulativenessQuestionText}
+                      onChange={(event) => setManipulativenessQuestionText(event.target.value)}
+                      rows={2}
+                    />
+                    <div className="grid gap-2 md:grid-cols-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="slider-manipulativeness-label-1">Label 1</Label>
+                        <Input
+                          id="slider-manipulativeness-label-1"
+                          value={manipulativenessLabel1}
+                          onChange={(event) => setManipulativenessLabel1(event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="slider-manipulativeness-label-3">Label 3</Label>
+                        <Input
+                          id="slider-manipulativeness-label-3"
+                          value={manipulativenessLabel3}
+                          onChange={(event) => setManipulativenessLabel3(event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="slider-manipulativeness-label-5">Label 5</Label>
+                        <Input
+                          id="slider-manipulativeness-label-5"
+                          value={manipulativenessLabel5}
+                          onChange={(event) => setManipulativenessLabel5(event.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="article-font-size">Velikost písma</Label>
@@ -813,12 +1038,12 @@ export default function ArticleDetail() {
 
                   {currentSlideDescriptor?.type === "novelty-scale" && (
                     <AnnotationSlide
-                      question="Na kolik jsou pro vás informace obsažené v článku známé?"
+                      question={noveltyQuestionText}
                       value={noveltySlider}
                       onChange={(value) => setNoveltySlider(value)}
                       min={1}
                       max={5}
-                      labels={{ 1: "Zcela neznámé", 3: "Ani známé, ani neznámé", 5: "Zcela známé" }}
+                      labels={{ 1: noveltyLabel1, 3: noveltyLabel3, 5: noveltyLabel5 }}
                       showKeyboardHint
                       showStepMarkers
                       topLeftLabel="Otázka 2"
@@ -830,12 +1055,12 @@ export default function ArticleDetail() {
 
                   {currentSlideDescriptor?.type === "credibility-scale" && (
                     <AnnotationSlide
-                      question="Nakolik je pro Vás tento článek důvěryhodný?"
+                      question={credibilityQuestionText}
                       value={credibilitySlider}
                       onChange={(value) => setCredibilitySlider(value)}
                       min={1}
                       max={5}
-                      labels={{ 1: "Zcela nevěrohodný", 3: "Ani nevěrohodný, ani věrohodný", 5: "Zcela věrohodný" }}
+                      labels={{ 1: credibilityLabel1, 3: credibilityLabel3, 5: credibilityLabel5 }}
                       showKeyboardHint
                       showStepMarkers
                       topLeftLabel="Otázka 3"
@@ -847,12 +1072,12 @@ export default function ArticleDetail() {
 
                   {currentSlideDescriptor?.type === "manipulativeness-scale" && (
                     <AnnotationSlide
-                      question="Na kolik je z vašeho pohledu tento článek manipulativní?"
+                      question={manipulativenessQuestionText}
                       value={manipulativenessSlider}
                       onChange={(value) => setManipulativenessSlider(value)}
                       min={1}
                       max={5}
-                      labels={{ 1: "Rozhodně nemanipulativní", 3: "Ani nemanipulativní, ani manipulativní", 5: "Rozhodně manipulativní" }}
+                      labels={{ 1: manipulativenessLabel1, 3: manipulativenessLabel3, 5: manipulativenessLabel5 }}
                       showKeyboardHint
                       showStepMarkers
                       topLeftLabel="Otázka 4"
