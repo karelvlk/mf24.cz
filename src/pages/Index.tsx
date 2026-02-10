@@ -13,12 +13,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useExperimentMode } from "@/context/ExperimentModeContext";
 import {
   datasetOrderingOptions,
@@ -27,6 +28,17 @@ import {
   newsData,
   type NewsArticle,
 } from "@/data/news";
+import {
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getSortedRowModel,
+  useReactTable,
+  type ColumnDef,
+  type ColumnFiltersState,
+  type SortingState,
+  type VisibilityState,
+} from "@tanstack/react-table";
 import { FlaskConical } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -51,6 +63,13 @@ const Index = () => {
   const [startPositionInput, setStartPositionInput] = useState("1");
   const [selectedMode, setSelectedMode] = useState<'none' | 'annotate' | 'experiment'>('none');
   const [selectedOrderingId, setSelectedOrderingId] = useState("");
+  const [lookupIdQuery, setLookupIdQuery] = useState("");
+  const [lookupTextQuery, setLookupTextQuery] = useState("");
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
+    fulltext: false,
+  });
   const DEFAULT_TEST_PARTICIPANT = "test-user";
 
   useEffect(() => {
@@ -114,6 +133,148 @@ const Index = () => {
 
     return datasetPreviewRows;
   }, [selectedOrdering, datasetPreviewRows]);
+
+  const orderingPositionMaps = useMemo(() => {
+    return orderingOptions.map((option) => {
+      const map = new Map<string, string>();
+      const total = option.order.length;
+      option.order.forEach((id, index) => {
+        map.set(id, `${index + 1}/${total}`);
+      });
+      return { id: option.id, label: option.label, map };
+    });
+  }, [orderingOptions]);
+
+  const escapeRegExp = (value: string) =>
+    value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  const columns = useMemo<ColumnDef<typeof datasetPreviewRows[number]>[]>(
+    () => {
+      const orderingColumns = orderingPositionMaps.map((option) => ({
+        id: option.id,
+        header: option.label,
+        accessorFn: (row: typeof datasetPreviewRows[number]) =>
+          option.map.get(row.id) ?? "-",
+        enableSorting: true,
+        enableColumnFilter: false,
+      }));
+
+      return [
+        ...orderingColumns,
+        {
+          id: "id",
+          header: "ID",
+          accessorFn: (row) => row.id,
+          enableSorting: true,
+          filterFn: (row, _columnId, value) => {
+            const query = String(value ?? "").trim().toLowerCase();
+            if (!query) return true;
+            const id = String(row.original.id ?? "").toLowerCase();
+            if (query.length === 1) {
+              const standalonePattern = new RegExp(`\\b${escapeRegExp(query)}\\b`, "i");
+              return standalonePattern.test(id);
+            }
+            return id.includes(query);
+          },
+        },
+        {
+          id: "content",
+          header: "Content",
+          accessorFn: (row) => row.content,
+          enableSorting: true,
+          enableColumnFilter: false,
+        },
+        {
+          id: "theme",
+          header: "Theme",
+          accessorFn: (row) => row.theme,
+          enableSorting: true,
+          enableColumnFilter: false,
+        },
+        {
+          id: "manip",
+          header: "Manip",
+          accessorFn: (row) => row.manip,
+          enableSorting: true,
+          enableColumnFilter: false,
+        },
+        {
+          id: "dezinfo",
+          header: "Dezinfo",
+          accessorFn: (row) => row.dezinfo,
+          enableSorting: true,
+          enableColumnFilter: false,
+        },
+        {
+          id: "fulltext",
+          header: "Fulltext",
+          accessorFn: (row) =>
+            `${row.id} ${row.content} ${row.theme} ${row.manip} ${row.dezinfo}`,
+          enableSorting: false,
+          filterFn: (row, _columnId, value) => {
+            const query = String(value ?? "").trim().toLowerCase();
+            if (!query) return true;
+            const haystack = (
+              `${row.original.id} ${row.original.content} ${row.original.theme} ` +
+              `${row.original.manip} ${row.original.dezinfo}`
+            ).toLowerCase();
+
+            if (query.length === 1) {
+              const standalonePattern = new RegExp(`\\b${escapeRegExp(query)}\\b`, "i");
+              return standalonePattern.test(haystack);
+            }
+
+            if (haystack.includes(query)) {
+              return true;
+            }
+
+            const tokens = query.split(/\s+/).filter(Boolean);
+            return tokens.some((token) => token.length >= 2 && haystack.includes(token));
+          },
+        },
+      ];
+    },
+    [orderingPositionMaps],
+  );
+
+  const table = useReactTable({
+    data: datasetPreview,
+    columns,
+    state: {
+      sorting,
+      columnFilters,
+      columnVisibility,
+    },
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+
+  useEffect(() => {
+    const trimmed = lookupIdQuery.trim();
+    setColumnFilters((prev) => {
+      const next = prev.filter((filter) => filter.id !== "id");
+      if (trimmed) {
+        next.push({ id: "id", value: trimmed });
+      }
+      return next;
+    });
+  }, [lookupIdQuery]);
+
+  useEffect(() => {
+    const trimmed = lookupTextQuery.trim();
+    setColumnFilters((prev) => {
+      const next = prev.filter((filter) => filter.id !== "fulltext");
+      if (trimmed) {
+        next.push({ id: "fulltext", value: trimmed });
+      }
+      return next;
+    });
+  }, [lookupTextQuery]);
+
 
   useEffect(() => {
     if (!selectedOrderingId && orderingOptions.length > 0) {
@@ -271,7 +432,14 @@ const Index = () => {
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-        if (event.key === " ") {
+      const target = event.target as HTMLElement | null;
+      const isEditableTarget =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.tagName === "SELECT" ||
+        target?.isContentEditable === true;
+
+      if (event.key === " " && !isEditableTarget) {
         event.preventDefault();
         navigate({ pathname: `/article/${firstArticleId}`, search: location.search });
       }
@@ -287,7 +455,14 @@ const Index = () => {
     }
 
     const handleSpaceKey = (event: KeyboardEvent) => {
-      if (event.key === " " && selectedMode === 'experiment') {
+      const target = event.target as HTMLElement | null;
+      const isEditableTarget =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.tagName === "SELECT" ||
+        target?.isContentEditable === true;
+
+      if (event.key === " " && selectedMode === 'experiment' && !isEditableTarget) {
         event.preventDefault();
         handleStartExperimentWithOrdering();
       }
@@ -338,7 +513,7 @@ const Index = () => {
 
   if (!isActive && selectedMode === 'annotate') {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-background p-4">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-background p-2">
         <div className="flex w-full max-w-md flex-col gap-4">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold">Anotace</h1>
@@ -366,40 +541,59 @@ const Index = () => {
   if (!isActive && selectedMode === 'experiment') {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-background p-4">
-        <div className="flex w-full max-w-5xl flex-col gap-6">
+        <div className="flex w-full max-w-[1024px] flex-col gap-6">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold">Experiment</h1>
             <Button variant="ghost" onClick={() => setSelectedMode('none')}>Zpět</Button>
           </div>
           <div className="flex flex-col gap-6 md:flex-row">
-            <div className="flex w-full flex-col gap-4 md:w-1/3">
-              <div className="grid gap-2">
-                <Label htmlFor="participant-experiment">ID účastníka</Label>
-                <Input
-                  id="participant-experiment"
-                  value={participantInput}
-                  onChange={(e) => setParticipantInput(e.target.value)}
-                  placeholder="např. A12"
-                />
-              </div>
-
+            <div className="flex w-full flex-col gap-4 md:w-1/6">
               <div className="grid gap-2">
                 <Label htmlFor="ordering-select">Select ordering</Label>
-                <Select
+                <select
+                  id="ordering-select"
                   value={selectedOrdering?.id ?? ""}
-                  onValueChange={setSelectedOrderingId}
+                  onChange={(event) => setSelectedOrderingId(event.target.value)}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  <SelectTrigger id="ordering-select">
-                    <SelectValue placeholder="Vyberte pořadí" />
-                  </SelectTrigger>
-                  <SelectContent className="z-[10000]">
-                    {orderingOptions.map((option) => (
-                      <SelectItem key={option.id} value={option.id} className="z-[10000]">
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <option value="" disabled>
+                    Vyberte pořadí
+                  </option>
+                  {orderingOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="rounded-md border border-separator/60 bg-white shadow-sm">
+                <div className="flex items-center justify-between border-b border-separator/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <span>Article lookup</span>
+                  <span>{datasetPreviewRows.length} rows</span>
+                </div>
+                <div className="space-y-3 px-3 py-3 text-sm">
+                  <div className="grid gap-2">
+                    <Label htmlFor="article-lookup-id">Article ID</Label>
+                    <Input
+                      id="article-lookup-id"
+                      value={lookupIdQuery}
+                      onChange={(event) => setLookupIdQuery(event.target.value)}
+                      placeholder="např. 33"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="article-lookup-text">Fulltext (vsechny sloupce)</Label>
+                    <Input
+                      id="article-lookup-text"
+                      value={lookupTextQuery}
+                      onChange={(event) => setLookupTextQuery(event.target.value)}
+                      placeholder="např. klima alarmiste"
+                    />
+                  </div>
+                  <div className="rounded-md border border-dashed border-muted-foreground/40 px-3 py-3 text-xs text-muted-foreground">
+                    Filtruje náhled tabulky podle zadaného ID nebo klíčových slov.
+                  </div>
+                </div>
               </div>
               <div className="flex-1" />
               <Button
@@ -418,45 +612,59 @@ const Index = () => {
               <div className="rounded-md border border-separator/60 bg-white shadow-sm">
                 <div className="flex items-center justify-between border-b border-separator/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   <span>Preview</span>
-                  <span>{datasetPreview.length} rows</span>
+                  <span>{table.getFilteredRowModel().rows.length} rows</span>
                 </div>
-                <div className="max-h-[calc(100vh-220px)] overflow-auto">
-                  <table className="w-full border-collapse text-xs">
-                    <thead className="sticky top-0 bg-white">
-                      <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        <th className="border-b border-separator/60 px-3 py-2">ID</th>
-                        <th className="border-b border-separator/60 px-3 py-2">Content</th>
-                        <th className="border-b border-separator/60 px-3 py-2">Theme</th>
-                        <th className="border-b border-separator/60 px-3 py-2">Manip</th>
-                        <th className="border-b border-separator/60 px-3 py-2">Dezinfo</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {datasetPreview.map((row) => (
-                        <tr key={row.id} className="border-b border-separator/40">
-                          <td className="px-3 py-2 font-mono text-[11px] text-foreground">
-                            {row.id}
-                          </td>
-                          <td className="px-3 py-2 text-foreground">
-                            {row.content}
-                          </td>
-                          <td className="px-3 py-2 text-foreground">{row.theme}</td>
-                          <td className="px-3 py-2 text-foreground">{row.manip}</td>
-                          <td className="px-3 py-2 text-foreground">{row.dezinfo}</td>
-                        </tr>
+                <div className="h-[calc(100vh-220px)] overflow-auto">
+                  <Table className="text-xs">
+                    <TableHeader className="sticky top-0 bg-white">
+                      {table.getHeaderGroups().map((headerGroup) => (
+                        <TableRow key={headerGroup.id}>
+                          {headerGroup.headers.map((header) => (
+                            <TableHead
+                              key={header.id}
+                              onClick={header.column.getToggleSortingHandler()}
+                              className="cursor-pointer border-b border-separator/60 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                            >
+                              <div className="flex items-center gap-1">
+                                {header.isPlaceholder
+                                  ? null
+                                  : flexRender(
+                                      header.column.columnDef.header,
+                                      header.getContext()
+                                    )}
+                                {header.column.getIsSorted() === "asc" && "▲"}
+                                {header.column.getIsSorted() === "desc" && "▼"}
+                              </div>
+                            </TableHead>
+                          ))}
+                        </TableRow>
                       ))}
-                      {datasetPreview.length === 0 && (
-                        <tr>
-                          <td
-                            colSpan={5}
+                    </TableHeader>
+                    <TableBody>
+                      {table.getRowModel().rows.map((row) => (
+                        <TableRow key={row.id}>
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell
+                              key={cell.id}
+                              className="border-b border-separator/40 px-3 py-2 text-[11px] text-foreground"
+                            >
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                      {table.getRowModel().rows.length === 0 && (
+                        <TableRow>
+                          <TableCell
+                            colSpan={table.getVisibleFlatColumns().length}
                             className="px-3 py-6 text-center text-xs text-muted-foreground"
                           >
                             Žádné záznamy k zobrazení.
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       )}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               </div>
             </div>
