@@ -19,7 +19,7 @@ const VIEWPORT = { width: 1920, height: 1080 };
 const SCREENSHOT_ROOT = path.resolve(projectRoot, "screenshots", "experiment-run");
 const RUN_ID = new Date().toISOString().replace(/[:.]/g, "-");
 const OUTPUT_DIR = path.join(SCREENSHOT_ROOT, `run-${RUN_ID}`);
-const INDEX_TSV = path.join(OUTPUT_DIR, "index.tsv");
+let INDEX_TSV = path.join(OUTPUT_DIR, "index.tsv");
 
 const SCREENSHOT_DELAY = Number.parseInt(process.env.EXPERIMENT_SCREENSHOT_DELAY ?? "120", 10);
 const ACTION_DELAY = Number.parseInt(process.env.EXPERIMENT_ACTION_DELAY ?? "80", 10);
@@ -36,6 +36,148 @@ const animationBlockerCSS = `
 `;
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function parseTsv(tsvText) {
+  const lines = tsvText.trim().split("\n");
+  if (lines.length < 1) {
+    return { header: null, rows: [] };
+  }
+
+  const header = lines[0];
+  const rows = lines.slice(1).map((line) => {
+    const parts = line.split("\t");
+    return {
+      article_id: parts[0]?.trim(),
+      raw: line,
+    };
+  });
+
+  return { header, rows };
+}
+
+function parseCsvRows(csvText) {
+  const rows = [];
+  let currentRow = [];
+  let currentValue = "";
+  let inQuotes = false;
+
+  const pushValue = () => {
+    currentRow.push(currentValue);
+    currentValue = "";
+  };
+
+  for (let i = 0; i < csvText.length; i += 1) {
+    const char = csvText[i];
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (csvText[i + 1] === '"') {
+          currentValue += '"';
+          i += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        currentValue += char;
+      }
+    } else if (char === '"') {
+      inQuotes = true;
+    } else if (char === ",") {
+      pushValue();
+    } else if (char === "\n") {
+      pushValue();
+      rows.push(currentRow);
+      currentRow = [];
+    } else if (char !== "\r") {
+      currentValue += char;
+    }
+  }
+
+  if (inQuotes === false && (currentValue || currentRow.length > 0)) {
+    pushValue();
+    rows.push(currentRow);
+  }
+
+  return rows;
+}
+
+async function loadDatasetOrderings() {
+  const datasetsDir = path.resolve(projectRoot, "data", "datasets");
+  const entries = await fs.readdir(datasetsDir, { withFileTypes: true });
+  const files = entries
+    .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".csv"))
+    .map((entry) => entry.name)
+    .sort((a, b) => a.localeCompare(b));
+
+  const orderings = [];
+
+  for (const fileName of files) {
+    const filePath = path.join(datasetsDir, fileName);
+    const csvText = await fs.readFile(filePath, "utf8");
+    const table = parseCsvRows(csvText);
+    if (table.length < 3) {
+      continue;
+    }
+    const rows = table.slice(2);
+    const order = rows
+      .map((row) => row[0]?.trim())
+      .filter((value) => Boolean(value));
+    const name = fileName.replace(/\.csv$/i, "");
+    orderings.push({ name, order });
+  }
+
+  return orderings;
+}
+
+async function writeReorderedTsvs(baseTsvPath, orderingEntries) {
+  const tsvText = await fs.readFile(baseTsvPath, "utf8");
+  const { header, rows } = parseTsv(tsvText);
+  if (!header) {
+    return;
+  }
+
+  const tsvMap = new Map();
+  for (const row of rows) {
+    if (row.article_id && !tsvMap.has(row.article_id)) {
+      tsvMap.set(row.article_id, row.raw);
+    }
+  }
+
+  const outputs = [];
+  for (const entry of orderingEntries) {
+    const forwardLabel = entry.name;
+    const reverseLabel = `rev-${entry.name}`;
+    outputs.push({ label: forwardLabel, order: entry.order });
+    outputs.push({ label: reverseLabel, order: [...entry.order].reverse() });
+  }
+
+  for (const output of outputs) {
+    if (!output.order.length) {
+      continue;
+    }
+
+    const uniqueOrder = [];
+    const seen = new Set();
+    for (const id of output.order) {
+      if (!seen.has(id)) {
+        seen.add(id);
+        uniqueOrder.push(id);
+      }
+    }
+
+    const sortedRows = [];
+    for (const id of uniqueOrder) {
+      if (tsvMap.has(id)) {
+        sortedRows.push(tsvMap.get(id));
+      }
+    }
+
+    const outputText = [header, ...sortedRows].join("\n") + "\n";
+    const outputPath = path.join(OUTPUT_DIR, `index-${output.label}.tsv`);
+    await fs.writeFile(outputPath, outputText, "utf8");
+    console.log(`Sorted TSV: ${path.relative(projectRoot, outputPath)}`);
+  }
+}
 
 function parseArguments(argv) {
   let articleLimit = null;
@@ -175,7 +317,46 @@ async function startExperiment(page) {
     throw new Error("Could not find the Experiment start button on the homepage.");
   }
 
-  await page.waitForSelector("article[data-card-variant='minimal']", { timeout: 10_000 });
+  await page.waitForSelector("#participant-experiment", { timeout: 10_000 });
+  await page.evaluate(() => {
+    const input = document.querySelector("#participant-experiment");
+    if (input instanceof HTMLInputElement) {
+      input.value = "";
+    }
+  });
+  await page.type("#participant-experiment", "1");
+
+  // Select the first ordering option from the dropdown using keyboard
+  await page.waitForSelector("#ordering-select", { timeout: 10_000 });
+  await page.click("#ordering-select");
+  await delay(500); // Wait for dropdown to open
+
+  // Use arrow down and enter to select first item
+  await page.keyboard.press("ArrowDown");
+  await delay(200);
+  await page.keyboard.press("Enter");
+  await delay(500); // Wait for selection to be applied
+
+  // Click the start button directly
+  const buttonClicked = await page.evaluate(() => {
+    const buttons = Array.from(document.querySelectorAll("button"));
+    const startButton = buttons.find((button) =>
+      button.textContent?.toLowerCase().includes("spustit experiment")
+    );
+    if (startButton && !startButton.disabled) {
+      startButton.click();
+      return true;
+    }
+    return false;
+  });
+
+  if (!buttonClicked) {
+    console.warn("Start button was disabled or not found, trying with SPACE key");
+    await page.keyboard.press("Space");
+  }
+
+  // Wait for experiment to start and articles to appear
+  await page.waitForSelector("article[data-card-variant='minimal']", { timeout: 20_000 });
   await delay(NAVIGATION_DELAY);
 }
 
@@ -627,6 +808,13 @@ async function captureExperiment(page) {
 }
 
 async function main() {
+  const orderingEntries = await loadDatasetOrderings();
+  if (orderingEntries.length === 0) {
+    throw new Error("No dataset orderings found in data/datasets.");
+  }
+  const baseOrdering = orderingEntries[0];
+  INDEX_TSV = path.join(OUTPUT_DIR, `index-${baseOrdering.name}.tsv`);
+
   await ensureOutputDir();
   const devProcess = await startDevServer();
 
@@ -654,6 +842,8 @@ async function main() {
     await browser.close();
     await stopDevServer(devProcess);
   }
+
+  await writeReorderedTsvs(INDEX_TSV, orderingEntries);
 }
 
 main().catch((error) => {

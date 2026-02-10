@@ -2,24 +2,38 @@ import NewsCard from "@/components/NewsCard";
 import NewsHeader from "@/components/NewsHeader";
 import { Button } from "@/components/ui/button";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useExperimentMode } from "@/context/ExperimentModeContext";
-import { getEmptyFillerArticles, newsData, type NewsArticle } from "@/data/news";
+import {
+  datasetOrderingOptions,
+  datasetPreviewRows,
+  getEmptyFillerArticles,
+  newsData,
+  type NewsArticle,
+} from "@/data/news";
 import { FlaskConical } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const Index = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     isActive,
     mode,
@@ -36,6 +50,7 @@ const Index = () => {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [startPositionInput, setStartPositionInput] = useState("1");
   const [selectedMode, setSelectedMode] = useState<'none' | 'annotate' | 'experiment'>('none');
+  const [selectedOrderingId, setSelectedOrderingId] = useState("");
   const DEFAULT_TEST_PARTICIPANT = "test-user";
 
   useEffect(() => {
@@ -59,6 +74,52 @@ const Index = () => {
       return acc;
     }, new Map<string, NewsArticle>());
   }, [allArticles]);
+
+  const orderingOptions = useMemo(() => {
+    const options = datasetOrderingOptions.flatMap((dataset) => {
+      const reversed = [...dataset.order].reverse();
+      return [
+        { id: dataset.name, label: dataset.name, order: dataset.order },
+        { id: `rev:${dataset.name}`, label: `rev-${dataset.name}`, order: reversed },
+      ];
+    });
+
+    if (options.length === 0) {
+      const fallbackOrder = allArticles.map((article) => article.id);
+      return [{ id: "default", label: "default", order: fallbackOrder }];
+    }
+
+    return options;
+  }, [allArticles]);
+
+  const selectedOrdering = useMemo(() => {
+    if (!orderingOptions.length) return null;
+    return (
+      orderingOptions.find((option) => option.id === selectedOrderingId) ??
+      orderingOptions[0]
+    );
+  }, [orderingOptions, selectedOrderingId]);
+
+  const datasetPreview = useMemo(() => {
+    if (!datasetPreviewRows.length) return [];
+
+    if (selectedOrdering?.order.length) {
+      const rowMap = new Map(
+        datasetPreviewRows.map((row) => [row.id, row])
+      );
+      return selectedOrdering.order
+        .map((id) => rowMap.get(id))
+        .filter((row): row is typeof datasetPreviewRows[number] => Boolean(row));
+    }
+
+    return datasetPreviewRows;
+  }, [selectedOrdering, datasetPreviewRows]);
+
+  useEffect(() => {
+    if (!selectedOrderingId && orderingOptions.length > 0) {
+      setSelectedOrderingId(orderingOptions[0].id);
+    }
+  }, [orderingOptions, selectedOrderingId]);
 
   const articlesForRendering = useMemo(() => {
     if (!isActive) {
@@ -95,26 +156,52 @@ const Index = () => {
     ? Math.max(0, totalPlannedArticles - remainingArticleIds.length)
     : 0;
 
+  const updateExperimentUrlState = (orderingId: string): string => {
+    const params = new URLSearchParams(location.search);
+    params.set("mode", "experiment");
+    params.set("ordering", orderingId);
+    const search = params.toString();
+    navigate({ pathname: location.pathname, search }, { replace: true });
+    return search;
+  };
+
   const handleStartExperiment = () => {
     const trimmedId = participantInput.trim();
     if (!trimmedId || totalArticles === 0) {
       return;
     }
 
-    const orderedIds = allArticles.map((article) => article.id);
+    const baseOrder =
+      selectedOrdering?.order.length
+        ? selectedOrdering.order
+        : allArticles.map((article) => article.id);
+    const orderedIds = baseOrder.filter((id) => articleDictionary.has(id));
     const startIndex = Math.max(0, Math.min(orderedIds.length, safeStartPosition - 1));
 
     startExperiment(trimmedId, orderedIds, startIndex);
+    if (selectedOrdering) {
+      updateExperimentUrlState(selectedOrdering.id);
+    }
     setIsConfigOpen(false);
   };
 
-  const handleQuickStartExperiment = () => {
-    if (totalArticles === 0) return;
-    const testId = DEFAULT_TEST_PARTICIPANT;
-    const orderedIds = allArticles.map((article) => article.id);
-    setParticipantInput(testId);
-    startExperiment(testId, orderedIds, 0);
-    setSelectedMode('experiment');
+  const handleStartExperimentWithOrdering = () => {
+    const trimmedId = participantInput.trim() || DEFAULT_TEST_PARTICIPANT;
+    const baseOrder =
+      selectedOrdering?.order.length
+        ? selectedOrdering.order
+        : allArticles.map((article) => article.id);
+    const orderedIds = baseOrder.filter((id) => articleDictionary.has(id));
+
+    if (!orderedIds.length) return;
+
+    setParticipantInput(trimmedId);
+    startExperiment(trimmedId, orderedIds, 0);
+    setSelectedMode('none');
+    if (selectedOrdering) {
+      updateExperimentUrlState(selectedOrdering.id);
+    }
+    // Don't navigate - stay on home page to show article list
   };
 
   const handleStartAnnotation = () => {
@@ -134,6 +221,7 @@ const Index = () => {
   const handleExitExperiment = () => {
     endExperiment();
     setSelectedMode('none');
+    navigate({ pathname: location.pathname, search: "" }, { replace: true });
   };
 
   useEffect(() => {
@@ -185,13 +273,29 @@ const Index = () => {
     const handleKeyDown = (event: KeyboardEvent) => {
         if (event.key === " ") {
         event.preventDefault();
-        navigate(`/article/${firstArticleId}`);
+        navigate({ pathname: `/article/${firstArticleId}`, search: location.search });
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [articlesForRendering, currentArticleId, isActive, mode, navigate, remainingArticleIds]);
+  }, [articlesForRendering, currentArticleId, isActive, location.search, mode, navigate, remainingArticleIds]);
+
+  useEffect(() => {
+    if (!selectedMode || selectedMode === 'none' || isActive) {
+      return;
+    }
+
+    const handleSpaceKey = (event: KeyboardEvent) => {
+      if (event.key === " " && selectedMode === 'experiment') {
+        event.preventDefault();
+        handleStartExperimentWithOrdering();
+      }
+    };
+
+    window.addEventListener("keydown", handleSpaceKey);
+    return () => window.removeEventListener("keydown", handleSpaceKey);
+  }, [selectedMode, isActive, handleStartExperimentWithOrdering]);
 
   if (!isActive && selectedMode === 'none') {
     return (
@@ -215,7 +319,7 @@ const Index = () => {
             size="lg"
             variant="outline"
             className="h-32 w-64 text-2xl"
-            onClick={handleQuickStartExperiment}
+            onClick={() => setSelectedMode('experiment')}
           >
             Experiment
           </Button>
@@ -254,6 +358,109 @@ const Index = () => {
           <Button onClick={handleStartAnnotation} disabled={!participantInput.trim()}>
             Začít anotovat
           </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isActive && selectedMode === 'experiment') {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-background p-4">
+        <div className="flex w-full max-w-5xl flex-col gap-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold">Experiment</h1>
+            <Button variant="ghost" onClick={() => setSelectedMode('none')}>Zpět</Button>
+          </div>
+          <div className="flex flex-col gap-6 md:flex-row">
+            <div className="flex w-full flex-col gap-4 md:w-1/3">
+              <div className="grid gap-2">
+                <Label htmlFor="participant-experiment">ID účastníka</Label>
+                <Input
+                  id="participant-experiment"
+                  value={participantInput}
+                  onChange={(e) => setParticipantInput(e.target.value)}
+                  placeholder="např. A12"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="ordering-select">Select ordering</Label>
+                <Select
+                  value={selectedOrdering?.id ?? ""}
+                  onValueChange={setSelectedOrderingId}
+                >
+                  <SelectTrigger id="ordering-select">
+                    <SelectValue placeholder="Vyberte pořadí" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[10000]">
+                    {orderingOptions.map((option) => (
+                      <SelectItem key={option.id} value={option.id} className="z-[10000]">
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1" />
+              <Button
+                onClick={handleStartExperimentWithOrdering}
+                disabled={!selectedOrdering || totalArticles === 0}
+                className="relative z-0"
+              >
+                Spustit experiment
+              </Button>
+              <div className="text-center text-xs text-muted-foreground">
+                Nebo stiskněte <kbd className="rounded bg-muted px-2 py-1 font-mono text-[11px]">SPACE</kbd>
+              </div>
+            </div>
+
+            <div className="w-full md:flex-1">
+              <div className="rounded-md border border-separator/60 bg-white shadow-sm">
+                <div className="flex items-center justify-between border-b border-separator/60 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <span>Preview</span>
+                  <span>{datasetPreview.length} rows</span>
+                </div>
+                <div className="max-h-[calc(100vh-220px)] overflow-auto">
+                  <table className="w-full border-collapse text-xs">
+                    <thead className="sticky top-0 bg-white">
+                      <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        <th className="border-b border-separator/60 px-3 py-2">ID</th>
+                        <th className="border-b border-separator/60 px-3 py-2">Content</th>
+                        <th className="border-b border-separator/60 px-3 py-2">Theme</th>
+                        <th className="border-b border-separator/60 px-3 py-2">Manip</th>
+                        <th className="border-b border-separator/60 px-3 py-2">Dezinfo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {datasetPreview.map((row) => (
+                        <tr key={row.id} className="border-b border-separator/40">
+                          <td className="px-3 py-2 font-mono text-[11px] text-foreground">
+                            {row.id}
+                          </td>
+                          <td className="px-3 py-2 text-foreground">
+                            {row.content}
+                          </td>
+                          <td className="px-3 py-2 text-foreground">{row.theme}</td>
+                          <td className="px-3 py-2 text-foreground">{row.manip}</td>
+                          <td className="px-3 py-2 text-foreground">{row.dezinfo}</td>
+                        </tr>
+                      ))}
+                      {datasetPreview.length === 0 && (
+                        <tr>
+                          <td
+                            colSpan={5}
+                            className="px-3 py-6 text-center text-xs text-muted-foreground"
+                          >
+                            Žádné záznamy k zobrazení.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );

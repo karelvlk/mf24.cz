@@ -382,6 +382,19 @@ type CsvRow = {
   is_invalid?: string;
 };
 
+export type DatasetOrdering = {
+  name: string;
+  order: string[];
+};
+
+export type DatasetPreviewRow = {
+  id: string;
+  content: string;
+  theme: string;
+  manip: string;
+  dezinfo: string;
+};
+
 const parseBoolean = (value?: string): boolean =>
   typeof value === "string" &&
   ["true", "1", "yes", "ano"].includes(value.trim().toLowerCase());
@@ -525,12 +538,85 @@ const csvToRows = (csvText?: string): CsvRow[] => {
   return validRows;
 };
 
+const csvToDatasetRows = (csvText?: string): CsvRow[] => {
+  if (!csvText) return [];
+  const table = parseCsv(csvText);
+  if (table.length < 2) return [];
+
+  const header = table[1].map((h) => h.trim().toLowerCase());
+  const getIdx = (name: string) => header.indexOf(name);
+
+  const idxIndex = 0;
+  const idxPseudotitle = getIdx("pseudotitle");
+  const idxTitle = getIdx("title");
+  const idxSource = getIdx("source");
+  const idxContent = getIdx("content");
+  const idxQuestion = getIdx("question");
+  const idxAnswer = getIdx("answer");
+  const idxTheme = getIdx("theme");
+  const idxManip = getIdx("manip");
+  const idxDezinfo = getIdx("dezinfo");
+  const idxInvalid = getIdx("is_invalid");
+
+  const dataRows = table.slice(2);
+
+  const validRows = dataRows
+    .filter((row) => {
+      const isInvalid = idxInvalid === -1 ? undefined : row[idxInvalid];
+      return !parseBoolean(isInvalid);
+    })
+    .map((row) => ({
+      index: row[idxIndex] ?? "",
+      pseudotitle: idxPseudotitle === -1 ? undefined : row[idxPseudotitle],
+      title: idxTitle === -1 ? undefined : row[idxTitle],
+      source: idxSource === -1 ? undefined : row[idxSource],
+      content: idxContent === -1 ? undefined : row[idxContent],
+      question: idxQuestion === -1 ? undefined : row[idxQuestion],
+      answer: idxAnswer === -1 ? undefined : row[idxAnswer],
+      theme: idxTheme === -1 ? undefined : row[idxTheme],
+      manip: idxManip === -1 ? undefined : row[idxManip],
+      dezinfo: idxDezinfo === -1 ? undefined : row[idxDezinfo],
+      is_invalid: idxInvalid === -1 ? undefined : row[idxInvalid],
+    }));
+
+  return validRows;
+};
+
 const mapCsvToArticles = (rows: CsvRow[]): NewsArticle[] =>
   rows.map((row, idx) => {
     const yesIsCorrect = parseBoolean(row.answer);
     // Use index-of-valid-only if available, otherwise fall back to index
     const articleId =
       row["index-of-valid-only"]?.trim() || row.index || `${idx + 1}`;
+
+    return {
+      id: articleId,
+      title: row.title?.trim() || row.pseudotitle?.trim() || "Bez názvu",
+      perex: "Klikněte pro zobrazení článku...",
+      content: row.content ?? "",
+      category: normalizeCategory(row.theme),
+      published: randomTimestamp(),
+      author: pickRandomAuthor(),
+      dezinformative: parseBoolean(row.dezinfo),
+      manipulative: parseBoolean(row.manip),
+      question: row.question
+        ? [
+            {
+              question: row.question,
+              answers: [
+                { text: "Ano", is_correct: yesIsCorrect },
+                { text: "Ne", is_correct: !yesIsCorrect },
+              ],
+            },
+          ]
+        : [],
+    };
+  });
+
+const mapDatasetRowsToArticles = (rows: CsvRow[]): NewsArticle[] =>
+  rows.map((row, idx) => {
+    const yesIsCorrect = parseBoolean(row.answer);
+    const articleId = row.index?.trim() || `${idx + 1}`;
 
     return {
       id: articleId,
@@ -563,6 +649,36 @@ const deziperCsvModules = import.meta.glob("../../data/deziper-texts.csv", {
 });
 const deziperCsvRaw = Object.values(deziperCsvModules)[0] as string | undefined;
 
+const datasetCsvModules = import.meta.glob("../../data/datasets/*.csv", {
+  as: "raw",
+  eager: true,
+});
+
+const datasetEntries = Object.entries(datasetCsvModules)
+  .map(([path, raw]) => ({
+    name:
+      path
+        .split("/")
+        .pop()
+        ?.replace(/\.csv$/i, "") ?? path,
+    raw: raw as string,
+  }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+const datasetOrderings: DatasetOrdering[] = datasetEntries.map((entry) => {
+  const rows = csvToDatasetRows(entry.raw);
+  return {
+    name: entry.name,
+    order: rows.map((row) => row.index?.trim() ?? "").filter(Boolean),
+  };
+});
+
+const datasetBaseRaw = datasetEntries[0]?.raw;
+const datasetBaseRows = datasetBaseRaw ? csvToDatasetRows(datasetBaseRaw) : [];
+const datasetBaseArticles: NewsArticle[] | null = datasetBaseRows.length
+  ? mapDatasetRowsToArticles(datasetBaseRows)
+  : null;
+
 const loadedArticles: NewsArticle[] | null = deziperCsvRaw
   ? mapCsvToArticles(csvToRows(deziperCsvRaw))
   : null;
@@ -593,9 +709,11 @@ const groupArticles = (
 };
 
 export const rawNewsData: Record<string, NewsArticle[]> =
-  loadedArticles && loadedArticles.length > 0
-    ? groupArticles(loadedArticles)
-    : defaultNewsData;
+  datasetBaseArticles && datasetBaseArticles.length > 0
+    ? groupArticles(datasetBaseArticles)
+    : loadedArticles && loadedArticles.length > 0
+      ? groupArticles(loadedArticles)
+      : defaultNewsData;
 
 const shuffleArray = <T>(array: T[]): T[] => {
   const shuffled = [...array];
@@ -646,3 +764,14 @@ export function getMainArticle(category: string): NewsArticle | null {
 export function getEmptyFillerArticles(): NewsArticle[] {
   return emptyFillerArticles;
 }
+
+export const datasetOrderingOptions: DatasetOrdering[] = datasetOrderings;
+export const datasetPreviewRows: DatasetPreviewRow[] = datasetBaseRows.map(
+  (row) => ({
+    id: row.index?.trim() ?? "",
+    content: row.content?.trim() ?? "",
+    theme: row.theme?.trim() ?? "",
+    manip: row.manip?.trim() ?? "",
+    dezinfo: row.dezinfo?.trim() ?? "",
+  }),
+);

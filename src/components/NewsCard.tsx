@@ -1,6 +1,6 @@
 import { NewsArticle } from "@/data/news";
 import { calculateReadingTime, cn, formatReadingTimeLabel } from "@/lib/utils";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 interface NewsCardProps {
   article: NewsArticle;
@@ -34,6 +34,7 @@ export default function NewsCard({
   orderLabel,
 }: NewsCardProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const readingTimeLabel = formatReadingTimeLabel(
     calculateReadingTime(article.perex)
   );
@@ -50,7 +51,7 @@ export default function NewsCard({
       return;
     }
 
-    navigate(`/article/${article.id}`);
+    navigate({ pathname: `/article/${article.id}`, search: location.search });
   };
 
   if (variant === 'minimal') {
