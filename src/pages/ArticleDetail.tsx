@@ -18,7 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useExperimentMode } from "@/context/ExperimentModeContext";
 import { useScreenshotMode } from "@/context/ScreenshotModeContext";
-import { emptyFillerArticles, newsData } from "@/data/news";
+import { annotationArticles, emptyFillerArticles, newsData } from "@/data/news";
 import { useToast } from "@/hooks/use-toast";
 import { paginateArticleContent } from "@/lib/utils";
 import { Settings2 } from "lucide-react";
@@ -101,10 +101,11 @@ export default function ArticleDetail() {
   const [manipulativenessLabel5, setManipulativenessLabel5] = useState(DEFAULT_MANIPULATIVENESS_LABEL_5);
   const [pages, setPages] = useState<string[]>([""]);
 
-  // Find article in all categories
+  // Find article in all categories (include annotation articles from merged_data.csv)
   const allArticles = [
     ...Object.values(newsData).flat(),
-    ...emptyFillerArticles
+    ...emptyFillerArticles,
+    ...annotationArticles
   ];
 
   const article = allArticles.find(a => a.id === id);
@@ -331,16 +332,16 @@ export default function ArticleDetail() {
         { type: "annotation-credibility" },
         { type: "annotation-manipulativeness" }
       );
+    } else {
+      // Novelty slider first
+      computed.push({ type: "novelty-scale" });
+
+      // Credibility slider second
+      computed.push({ type: "credibility-scale" });
+
+      // Manipulativeness slider third
+      computed.push({ type: "manipulativeness-scale" });
     }
-
-    // Novelty slider first
-    computed.push({ type: "novelty-scale" });
-
-    // Credibility slider second
-    computed.push({ type: "credibility-scale" });
-
-    // Manipulativeness slider third
-    computed.push({ type: "manipulativeness-scale" });
 
     return computed;
   }, [mode, pages, questionItems]);
@@ -444,6 +445,8 @@ export default function ArticleDetail() {
   const isCredibilitySlide = currentSlideDescriptor?.type === "credibility-scale";
   const isNoveltySlide = currentSlideDescriptor?.type === "novelty-scale";
   const isManipulativenessSlide = currentSlideDescriptor?.type === "manipulativeness-scale";
+  const isAnnotationCredibilitySlide = currentSlideDescriptor?.type === "annotation-credibility";
+  const isAnnotationManipulativenessSlide = currentSlideDescriptor?.type === "annotation-manipulativeness";
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -467,12 +470,22 @@ export default function ArticleDetail() {
             setManipulativenessSlider(numeric);
           }
         }
+      } else if (isAnnotationCredibilitySlide || isAnnotationManipulativenessSlide) {
+        const numeric = Number.parseInt(e.key, 10);
+        if (!Number.isNaN(numeric) && numeric >= 1 && numeric <= 7) {
+          e.preventDefault();
+          if (isAnnotationCredibilitySlide) {
+            setAnnotationAnswers((prev) => ({ ...prev, credibility: numeric }));
+          } else if (isAnnotationManipulativenessSlide) {
+            setAnnotationAnswers((prev) => ({ ...prev, manipulativeness: numeric }));
+          }
+        }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown, { capture: true });
     return () => window.removeEventListener("keydown", handleKeyDown, { capture: true });
-  }, [handleNext, handlePrev, isCredibilitySlide, isManipulativenessSlide, isNoveltySlide, isSettingsOpen]);
+  }, [handleNext, handlePrev, isAnnotationCredibilitySlide, isAnnotationManipulativenessSlide, isCredibilitySlide, isManipulativenessSlide, isNoveltySlide, isSettingsOpen]);
 
   useEffect(() => {
     if (screenshotMode) {
@@ -1094,7 +1107,12 @@ export default function ArticleDetail() {
                       onChange={(value) =>
                         setAnnotationAnswers((prev) => ({ ...prev, credibility: value }))
                       }
-                      labels={{ 1: "Nevěrohodný", 7: "Věrohodný" }}
+                      min={1}
+                      max={7}
+                      labels={{ 1: "Nevěrohodný", 4: "",  7: "Věrohodný" }}
+                      showKeyboardHint
+                      showStepMarkers
+                      topLeftLabel="Otázka 1/2"
                     />
                   )}
 
@@ -1105,7 +1123,12 @@ export default function ArticleDetail() {
                       onChange={(value) =>
                         setAnnotationAnswers((prev) => ({ ...prev, manipulativeness: value }))
                       }
-                      labels={{ 1: "Nemanipulativní", 7: "Manipulativní" }}
+                      min={1}
+                      max={7}
+                      labels={{ 1: "Nemanipulativní", 4: "",  7: "Manipulativní" }}
+                      showKeyboardHint
+                      showStepMarkers
+                      topLeftLabel="Otázka 2/2"
                     />
                   )}
                 </div>
@@ -1155,6 +1178,30 @@ export default function ArticleDetail() {
                           return (
                             <span
                               key={`pagination-question-${num}`}
+                              className={
+                                isActive
+                                  ? "inline-flex h-8 w-8 items-center justify-center rounded-md border border-primary bg-primary text-xs font-semibold text-primary-foreground"
+                                  : "inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-white/80 text-xs font-semibold text-muted-foreground"
+                              }
+                              aria-current={isActive ? "page" : undefined}
+                            >
+                              {num}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  {(currentSlideDescriptor?.type === "annotation-credibility" ||
+                    currentSlideDescriptor?.type === "annotation-manipulativeness") && (
+                      <div className="ml-auto flex items-center gap-2">
+                        {[1, 2].map((num) => {
+                          const isActive =
+                            (currentSlideDescriptor?.type === "annotation-credibility" && num === 1) ||
+                            (currentSlideDescriptor?.type === "annotation-manipulativeness" && num === 2);
+
+                          return (
+                            <span
+                              key={`pagination-annotation-${num}`}
                               className={
                                 isActive
                                   ? "inline-flex h-8 w-8 items-center justify-center rounded-md border border-primary bg-primary text-xs font-semibold text-primary-foreground"

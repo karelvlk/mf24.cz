@@ -120,12 +120,12 @@ export default function QuestionSlide({
                 <>
                   {answerKey === "3" && (
                     <>
-                      <kbd className="rounded-md border border-border bg-background px-2 py-1 text-xs font-semibold uppercase text-foreground shadow-sm">
+                      {/* <kbd className="rounded-md border border-border bg-background px-2 py-1 text-xs font-semibold uppercase text-foreground shadow-sm">
                         1
                       </kbd>
                       <kbd className="rounded-md border border-border bg-background px-2 py-1 text-xs font-semibold uppercase text-foreground shadow-sm">
                         2
-                      </kbd>
+                      </kbd> */}
                       <kbd className="rounded-md border border-border bg-background px-2 py-1 text-xs font-semibold uppercase text-foreground shadow-sm">
                         3
                       </kbd>
@@ -136,9 +136,9 @@ export default function QuestionSlide({
                       <kbd className="rounded-md border border-border bg-background px-2 py-1 text-xs font-semibold uppercase text-foreground shadow-sm">
                         4
                       </kbd>
-                      <kbd className="rounded-md border border-border bg-background px-2 py-1 text-xs font-semibold uppercase text-foreground shadow-sm">
+                      {/* <kbd className="rounded-md border border-border bg-background px-2 py-1 text-xs font-semibold uppercase text-foreground shadow-sm">
                         5
-                      </kbd>
+                      </kbd> */}
                     </>
                   )}
                   {answerKey !== "3" && answerKey !== "4" && (

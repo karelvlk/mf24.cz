@@ -649,6 +649,18 @@ const deziperCsvModules = import.meta.glob("../../data/deziper-texts.csv", {
 });
 const deziperCsvRaw = Object.values(deziperCsvModules)[0] as string | undefined;
 
+// Load merged_data.csv for annotation mode
+const mergedDataCsvModules = import.meta.glob("../../data/merged_data.csv", {
+  as: "raw",
+  eager: true,
+});
+const mergedDataCsvRaw = Object.values(mergedDataCsvModules)[0] as string | undefined;
+
+const mergedDataRows = mergedDataCsvRaw ? csvToRows(mergedDataCsvRaw) : [];
+const mergedDataArticles: NewsArticle[] = mergedDataRows.length
+  ? mapCsvToArticles(mergedDataRows)
+  : [];
+
 const datasetCsvModules = import.meta.glob("../../data/datasets/*.csv", {
   as: "raw",
   eager: true,
@@ -764,6 +776,8 @@ export function getMainArticle(category: string): NewsArticle | null {
 export function getEmptyFillerArticles(): NewsArticle[] {
   return emptyFillerArticles;
 }
+
+export const annotationArticles: NewsArticle[] = mergedDataArticles;
 
 export const datasetOrderingOptions: DatasetOrdering[] = datasetOrderings;
 export const datasetPreviewRows: DatasetPreviewRow[] = datasetBaseRows.map(

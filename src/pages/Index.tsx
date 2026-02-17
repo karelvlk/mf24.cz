@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/table";
 import { useExperimentMode } from "@/context/ExperimentModeContext";
 import {
+  annotationArticles,
   datasetOrderingOptions,
   datasetPreviewRows,
   getEmptyFillerArticles,
@@ -76,16 +77,19 @@ const Index = () => {
     setParticipantInput(participantId);
   }, [participantId]);
 
-  const allArticles = useMemo<NewsArticle[]>(
-    () => [
+  const allArticles = useMemo<NewsArticle[]>(() => {
+    const base = [
       ...newsData["zahranicni-politika"],
       ...newsData["ceska-politika"],
       ...newsData["zdravi"],
       ...newsData["priroda"],
       ...getEmptyFillerArticles(),
-    ],
-    []
-  );
+    ];
+    // Add annotation articles that aren't already in the base set
+    const baseIds = new Set(base.map((a) => a.id));
+    const extra = annotationArticles.filter((a) => !baseIds.has(a.id));
+    return [...base, ...extra];
+  }, []);
 
   const articleDictionary = useMemo(() => {
     return allArticles.reduce((acc, article) => {
@@ -367,14 +371,17 @@ const Index = () => {
 
   const handleStartAnnotation = () => {
     const trimmedId = participantInput.trim();
-    if (!trimmedId || totalArticles === 0) {
+    if (!trimmedId) {
       return;
     }
 
-    // Static order for annotation - sort by ID to be deterministic
-    const orderedIds = allArticles
+    // Use articles from merged_data.csv for annotation, sorted by ID
+    const sourceArticles = annotationArticles.length > 0 ? annotationArticles : allArticles;
+    const orderedIds = [...sourceArticles]
       .sort((a, b) => a.id.localeCompare(b.id))
       .map((article) => article.id);
+
+    if (orderedIds.length === 0) return;
 
     startAnnotation(trimmedId, orderedIds);
   };
