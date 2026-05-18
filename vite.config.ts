@@ -1,105 +1,120 @@
 import react from "@vitejs/plugin-react-swc";
-import fs from "fs";
 import { componentTagger } from "lovable-tagger";
 import path from "path";
 import { fileURLToPath } from "url";
 import { defineConfig, loadEnv } from "vite";
+import {
+  deleteAnnotationsByAnnotator,
+  exportCsv,
+  getAllAnnotations,
+  getAnnotationsByAnnotator,
+  getLatestAnnotations,
+  insertAnnotation,
+} from "./server/annotationsDb";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Custom plugin to save annotations
-const saveAnnotationsMiddleware = (req, res, next) => {
-  const dataDir = path.resolve(__dirname, "data-records");
-  const outputFile = path.join(dataDir, "annotations.json");
+const API_BASE = "/api/save-annotation";
 
-  if (req.url === "/api/save-annotation") {
-    if (req.method === "GET") {
-      // Handle retrieving annotations
+const saveAnnotationsMiddleware = (req: any, res: any, next: any) => {
+  const rawUrl: string = req.url ?? "";
+  const apiIdx = rawUrl.indexOf(API_BASE);
+  if (apiIdx === -1) {
+    return next();
+  }
+  const url = rawUrl.slice(apiIdx);
+
+  const queryAnnotator = (() => {
+    const qIdx = url.indexOf("?");
+    if (qIdx === -1) return null;
+    const params = new URLSearchParams(url.slice(qIdx + 1));
+    const v = params.get("annotator")?.trim();
+    return v && v.length > 0 ? v : null;
+  })();
+
+  if (req.method === "GET") {
+    try {
+      if (url.startsWith("/api/save-annotation/export")) {
+        const csv = exportCsv(__dirname);
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader(
+          "Content-Disposition",
+          'attachment; filename="annotations.csv"',
+        );
+        res.end(csv);
+        return;
+      }
+      let rows;
+      if (url.startsWith("/api/save-annotation/all")) {
+        rows = getAllAnnotations(__dirname);
+      } else if (queryAnnotator) {
+        rows = getAnnotationsByAnnotator(__dirname, queryAnnotator);
+      } else {
+        rows = getLatestAnnotations(__dirname);
+      }
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify(rows));
+    } catch (error) {
+      console.error("[Vite Middleware] Error reading annotations:", error);
+      res.statusCode = 500;
+      res.end(JSON.stringify({ error: "Internal Server Error" }));
+    }
+    return;
+  }
+
+  if (req.method === "DELETE") {
+    try {
+      if (!queryAnnotator) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ error: "Missing ?annotator=" }));
+        return;
+      }
+      const deleted = deleteAnnotationsByAnnotator(__dirname, queryAnnotator);
+      console.log(
+        `[Vite Middleware] Deleted ${deleted} rows for annotator=${queryAnnotator}`,
+      );
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ success: true, deleted }));
+    } catch (error) {
+      console.error("[Vite Middleware] Error deleting:", error);
+      res.statusCode = 500;
+      res.end(JSON.stringify({ error: "Internal Server Error" }));
+    }
+    return;
+  }
+
+  if (req.method === "POST") {
+    let body = "";
+    req.on("data", (chunk: Buffer) => {
+      body += chunk.toString();
+    });
+    req.on("end", () => {
       try {
-        if (fs.existsSync(outputFile)) {
-          const content = fs.readFileSync(outputFile, "utf8");
-          res.statusCode = 200;
-          res.setHeader("Content-Type", "application/json");
-          res.end(content);
-        } else {
-          res.statusCode = 200;
-          res.setHeader("Content-Type", "application/json");
-          res.end("[]");
+        const data = JSON.parse(body);
+        const items = Array.isArray(data) ? data : [data];
+        let addedCount = 0;
+        for (const item of items) {
+          if (!item?.annotatorId || !item?.articleId) continue;
+          insertAnnotation(__dirname, item);
+          addedCount += 1;
         }
+        console.log(
+          `[Vite Middleware] Saved ${addedCount} annotation(s) to SQLite`,
+        );
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ success: true, added: addedCount }));
       } catch (error) {
-        console.error("[Vite Middleware] Error reading annotations:", error);
+        console.error("[Vite Middleware] Error saving annotation:", error);
         res.statusCode = 500;
         res.end(JSON.stringify({ error: "Internal Server Error" }));
       }
-      return;
-    }
-
-    if (req.method === "POST") {
-      console.log("[Vite Middleware] Received save request");
-      let body = "";
-      req.on("data", (chunk) => {
-        body += chunk.toString();
-      });
-      req.on("end", () => {
-        try {
-          console.log("[Vite Middleware] Processing body...");
-          const data = JSON.parse(body);
-
-          if (!fs.existsSync(dataDir)) {
-            fs.mkdirSync(dataDir, { recursive: true });
-          }
-
-          let existingData = [];
-          if (fs.existsSync(outputFile)) {
-            try {
-              existingData = JSON.parse(fs.readFileSync(outputFile, "utf8"));
-            } catch (e) {
-              console.error(
-                "[Vite Middleware] Error parsing existing annotations:",
-                e
-              );
-            }
-          }
-
-          // Handle array or single object
-          const newItems = Array.isArray(data) ? data : [data];
-          let addedCount = 0;
-
-          for (const item of newItems) {
-            const isDuplicate = existingData.some(
-              (existing) =>
-                existing.annotatorId === item.annotatorId &&
-                existing.articleId === item.articleId
-            );
-            if (!isDuplicate) {
-              existingData.push(item);
-              addedCount++;
-            }
-          }
-
-          if (addedCount > 0) {
-            fs.writeFileSync(outputFile, JSON.stringify(existingData, null, 2));
-            console.log(
-              `[Vite Middleware] Saved ${addedCount} annotation(s) to ${outputFile}`
-            );
-          } else {
-            console.log(
-              "[Vite Middleware] No new annotations to save (duplicates)."
-            );
-          }
-
-          res.statusCode = 200;
-          res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify({ success: true, added: addedCount }));
-        } catch (error) {
-          console.error("[Vite Middleware] Error saving annotation:", error);
-          res.statusCode = 500;
-          res.end(JSON.stringify({ error: "Internal Server Error" }));
-        }
-      });
-      return;
-    }
+    });
+    return;
   }
 
   next();
@@ -107,10 +122,10 @@ const saveAnnotationsMiddleware = (req, res, next) => {
 
 const saveAnnotationsPlugin = () => ({
   name: "save-annotations",
-  configureServer(server) {
+  configureServer(server: any) {
     server.middlewares.use(saveAnnotationsMiddleware);
   },
-  configurePreviewServer(server) {
+  configurePreviewServer(server: any) {
     server.middlewares.use(saveAnnotationsMiddleware);
   },
 });

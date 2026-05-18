@@ -6,6 +6,8 @@ import { ScreenshotModeProvider } from "@/context/ScreenshotModeContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import AnalysisPage from "./pages/AnalysisPage";
+import AnnotateDone from "./pages/AnnotateDone";
+import ArticleAnnotate from "./pages/ArticleAnnotate";
 import ArticleDetail from "./pages/ArticleDetail";
 import CategoryPage from "./pages/CategoryPage";
 import Index from "./pages/Index";
@@ -25,7 +27,9 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/analysis" element={<AnalysisPage />} />
               <Route path="/analysis/:tab" element={<AnalysisPage />} />
+              <Route path="/article/:id/annotate" element={<ArticleAnnotate />} />
               <Route path="/article/:id" element={<ArticleDetail />} />
+              <Route path="/annotate/done" element={<AnnotateDone />} />
               <Route path="/:category" element={<CategoryPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

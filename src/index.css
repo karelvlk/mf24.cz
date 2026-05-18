@@ -27,6 +27,16 @@
     --card: 0 0% 100%;
     --card-foreground: 0 0% 13%;
 
+    /* Popover surfaces */
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 13%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 40%;
+    --input: 0 0% 90%;
+    --ring: 214 100% 50%;
+    --destructive: 0 84% 55%;
+    --destructive-foreground: 0 0% 100%;
+
     /* Navigation and header - white background */
     --header: 0 0% 100%;
     --header-foreground: 0 0% 13%;
@@ -197,6 +207,20 @@
   to {
     opacity: 1;
     transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes spanPulse {
+  0% {
+    opacity: 0;
+    stroke-width: 3;
+  }
+  30% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+    stroke-width: 18;
   }
 }
 

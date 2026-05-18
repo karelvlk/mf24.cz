@@ -55,7 +55,6 @@ const Index = () => {
     remainingArticleIds,
     currentArticleId,
     startExperiment,
-    startAnnotation,
     endExperiment,
   } = useExperimentMode();
 
@@ -375,7 +374,6 @@ const Index = () => {
       return;
     }
 
-    // Use articles from merged_data.csv for annotation, sorted by ID
     const sourceArticles = annotationArticles.length > 0 ? annotationArticles : allArticles;
     const orderedIds = [...sourceArticles]
       .sort((a, b) => a.id.localeCompare(b.id))
@@ -383,7 +381,21 @@ const Index = () => {
 
     if (orderedIds.length === 0) return;
 
-    startAnnotation(trimmedId, orderedIds);
+    let visited: string[] = [];
+    try {
+      const raw = localStorage.getItem(`annotate_visited_${trimmedId}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) visited = parsed.filter((s) => typeof s === "string");
+      }
+    } catch {
+      // ignore
+    }
+
+    const nextId = orderedIds.find((id) => !visited.includes(id)) ?? orderedIds[0];
+    navigate(
+      `/article/${nextId}/annotate?annotator=${encodeURIComponent(trimmedId)}`,
+    );
   };
 
   const handleExitExperiment = () => {
