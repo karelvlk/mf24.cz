@@ -24,11 +24,14 @@ export function useAnnotatorAnnotations(annotator: string) {
   const [byArticle, setByArticle] = useState<Map<string, AnnotatorAnnotation>>(
     new Map(),
   );
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(Boolean(annotator));
+  const [hasFetched, setHasFetched] = useState(false);
 
   const refetch = useCallback(async () => {
     if (!annotator) {
       setByArticle(new Map());
+      setHasFetched(true);
+      setLoading(false);
       return;
     }
     setLoading(true);
@@ -53,15 +56,17 @@ export function useAnnotatorAnnotations(annotator: string) {
     } catch (err) {
       console.error("Failed to fetch annotator annotations:", err);
     } finally {
+      setHasFetched(true);
       setLoading(false);
     }
   }, [annotator]);
 
   useEffect(() => {
+    setHasFetched(false);
     refetch();
   }, [refetch]);
 
-  return { byArticle, loading, refetch };
+  return { byArticle, loading, hasFetched, refetch };
 }
 
 export async function deleteAllAnnotationsForAnnotator(

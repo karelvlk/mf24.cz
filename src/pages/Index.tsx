@@ -368,7 +368,7 @@ const Index = () => {
     // Don't navigate - stay on home page to show article list
   };
 
-  const handleStartAnnotation = () => {
+  const handleStartAnnotation = async () => {
     const trimmedId = participantInput.trim();
     if (!trimmedId) {
       return;
@@ -376,23 +376,31 @@ const Index = () => {
 
     const sourceArticles = annotationArticles.length > 0 ? annotationArticles : allArticles;
     const orderedIds = [...sourceArticles]
-      .sort((a, b) => a.id.localeCompare(b.id))
+      .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))
       .map((article) => article.id);
 
     if (orderedIds.length === 0) return;
 
-    let visited: string[] = [];
+    const annotated = new Set<string>();
     try {
-      const raw = localStorage.getItem(`annotate_visited_${trimmedId}`);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) visited = parsed.filter((s) => typeof s === "string");
+      const resp = await fetch(
+        `${import.meta.env.BASE_URL}api/save-annotation?annotator=${encodeURIComponent(trimmedId)}`,
+      );
+      if (resp.ok) {
+        const data = await resp.json();
+        if (Array.isArray(data)) {
+          for (const item of data) {
+            if (item?.articleId && item?.annotatorId === trimmedId) {
+              annotated.add(String(item.articleId));
+            }
+          }
+        }
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error("Failed to fetch existing annotations:", err);
     }
 
-    const nextId = orderedIds.find((id) => !visited.includes(id)) ?? orderedIds[0];
+    const nextId = orderedIds.find((id) => !annotated.has(id)) ?? orderedIds[0];
     navigate(
       `/article/${nextId}/annotate?annotator=${encodeURIComponent(trimmedId)}`,
     );

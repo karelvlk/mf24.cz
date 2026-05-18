@@ -61,12 +61,24 @@ export default function ArticleAnnotate() {
     removeType,
   } = useAnnotationTypes(annotator);
 
-  const queue = useAnnotateQueue(annotator);
   const annotatorAnnotations = useAnnotatorAnnotations(annotator);
+  const annotatedIds = useMemo(
+    () => new Set(annotatorAnnotations.byArticle.keys()),
+    [annotatorAnnotations.byArticle],
+  );
+  const queue = useAnnotateQueue(annotatedIds);
+
+  useEffect(() => {
+    if (!hasAnnotator || !articleId) return;
+    annotatorAnnotations.refetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [articleId, hasAnnotator]);
 
   const sortedArticles = useMemo(
     () =>
-      [...annotationArticles].sort((a, b) => a.id.localeCompare(b.id)),
+      [...annotationArticles].sort((a, b) =>
+        a.id.localeCompare(b.id, undefined, { numeric: true }),
+      ),
     [],
   );
 
@@ -79,14 +91,40 @@ export default function ArticleAnnotate() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!hasAnnotator || !articleId) return;
-    const draft = loadDraft(annotator, articleId);
-    setSpans(draft?.spans ?? []);
-    setAnswers(draft?.answers ?? {});
+    setHydrated(false);
+    setSpans([]);
+    setAnswers({});
     setActiveTypeId(null);
+  }, [annotator, articleId]);
+
+  useEffect(() => {
+    if (!hasAnnotator || !articleId || hydrated) return;
+    if (!annotatorAnnotations.hasFetched) return;
+    const draft = loadDraft(annotator, articleId);
+    const hasDraft =
+      draft && (draft.spans.length > 0 || Object.keys(draft.answers).length > 0);
+    if (hasDraft) {
+      setSpans(draft.spans);
+      setAnswers(draft.answers);
+    } else {
+      const serverAnn = annotatorAnnotations.byArticle.get(articleId);
+      if (serverAnn) {
+        setSpans(serverAnn.spans ?? []);
+        setAnswers({
+          credibility: serverAnn.credibility,
+          manipulativeness: serverAnn.manipulativeness,
+        });
+      }
+    }
     setHydrated(true);
-    return () => setHydrated(false);
-  }, [annotator, articleId, hasAnnotator]);
+  }, [
+    annotator,
+    articleId,
+    hasAnnotator,
+    hydrated,
+    annotatorAnnotations.hasFetched,
+    annotatorAnnotations.byArticle,
+  ]);
 
   const saveStatus = useAnnotateDraft(
     annotator,
@@ -155,8 +193,7 @@ export default function ArticleAnnotate() {
       console.error("Failed to save annotation:", err);
     }
     clearDraft(annotator, article.id);
-    queue.markVisited(article.id);
-    annotatorAnnotations.refetch();
+    await annotatorAnnotations.refetch();
     setSubmitting(false);
 
     const nextId = queue.nextUnvisited(article.id);
@@ -221,10 +258,10 @@ export default function ArticleAnnotate() {
       title: "Smazáno",
       description: "Všechny anotace pro tohoto anotátora byly odstraněny.",
     });
-    annotatorAnnotations.refetch();
-    queue.resetVisited();
+    await annotatorAnnotations.refetch();
     setSpans([]);
     setAnswers({});
+    setHydrated(false);
     const firstId = sortedArticles[0]?.id;
     if (firstId) {
       navigate(
@@ -307,9 +344,6 @@ export default function ArticleAnnotate() {
               <h2 className="text-xl font-bold text-foreground">
                 {article.title}
               </h2>
-              {article.perex && (
-                <p className="text-sm italic text-zinc-600">{article.perex}</p>
-              )}
             </section>
 
             <AnnotatableArticle

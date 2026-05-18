@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { useAnnotateQueue } from "@/hooks/useAnnotateQueue";
+import { annotationArticles } from "@/data/news";
+import { deleteAllAnnotationsForAnnotator } from "@/hooks/useAnnotatorAnnotations";
 import { CheckCircle2 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
@@ -7,11 +8,36 @@ export default function AnnotateDone() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const annotator = searchParams.get("annotator")?.trim() ?? "";
-  const queue = useAnnotateQueue(annotator);
 
-  const handleReset = () => {
-    queue.resetVisited();
-    const first = queue.allIds[0];
+  const sortedIds = [...annotationArticles]
+    .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))
+    .map((a) => a.id);
+
+  const handleReset = async () => {
+    if (!annotator) return;
+    const ok = window.confirm(
+      `Smazat všechny anotace pro '${annotator}' a začít znovu? Akce je nevratná.`,
+    );
+    if (!ok) return;
+    try {
+      await deleteAllAnnotationsForAnnotator(annotator);
+    } catch (err) {
+      console.error("Reset failed:", err);
+      return;
+    }
+    try {
+      localStorage.removeItem(`annotation_types_${annotator}`);
+      const prefix = `annotate_draft_${annotator}_`;
+      const keys: string[] = [];
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(prefix)) keys.push(k);
+      }
+      keys.forEach((k) => localStorage.removeItem(k));
+    } catch {
+      // ignore
+    }
+    const first = sortedIds[0];
     if (first) {
       navigate(
         `/article/${first}/annotate?annotator=${encodeURIComponent(annotator)}`,
@@ -26,7 +52,7 @@ export default function AnnotateDone() {
         <h1 className="text-2xl font-bold text-foreground">Hotovo</h1>
         <p className="text-sm text-zinc-600">
           {annotator
-            ? `Děkujeme, ${annotator}. Všech ${queue.totalCount} článků je anotovaných.`
+            ? `Děkujeme, ${annotator}. Všech ${sortedIds.length} článků je anotovaných.`
             : "Všechny články jsou anotované."}
         </p>
       </div>

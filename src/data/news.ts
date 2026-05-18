@@ -777,7 +777,10 @@ export function getEmptyFillerArticles(): NewsArticle[] {
   return emptyFillerArticles;
 }
 
-export const annotationArticles: NewsArticle[] = mergedDataArticles;
+export const annotationArticles: NewsArticle[] =
+  datasetBaseArticles && datasetBaseArticles.length > 0
+    ? datasetBaseArticles
+    : mergedDataArticles;
 
 export const datasetOrderingOptions: DatasetOrdering[] = datasetOrderings;
 export const datasetPreviewRows: DatasetPreviewRow[] = datasetBaseRows.map(
