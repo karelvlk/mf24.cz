@@ -86,6 +86,7 @@ export default function ArticleAnnotate() {
   const [spans, setSpans] = useState<SpanAnnotation[]>([]);
   const [answers, setAnswers] = useState<AnnotateAnswers>({});
   const [activeTypeId, setActiveTypeId] = useState<string | null>(null);
+  const [activeOptionId, setActiveOptionId] = useState<string | null>(null);
   const [pulseSpanId, setPulseSpanId] = useState<string | null>(null);
   const [pulseKey, setPulseKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -95,7 +96,24 @@ export default function ArticleAnnotate() {
     setSpans([]);
     setAnswers({});
     setActiveTypeId(null);
+    setActiveOptionId(null);
   }, [annotator, articleId]);
+
+  useEffect(() => {
+    if (!activeTypeId) {
+      setActiveOptionId(null);
+      return;
+    }
+    const t = types.find((x) => x.id === activeTypeId);
+    const opts = t?.options;
+    if (!opts || opts.length === 0) {
+      setActiveOptionId(null);
+      return;
+    }
+    if (!activeOptionId || !opts.some((o) => o.id === activeOptionId)) {
+      setActiveOptionId(opts[0].id);
+    }
+  }, [activeTypeId, types, activeOptionId]);
 
   useEffect(() => {
     if (!hasAnnotator || !articleId || hydrated) return;
@@ -330,7 +348,9 @@ export default function ArticleAnnotate() {
       <AnnotateToolbar
         types={types}
         activeTypeId={activeTypeId}
+        activeOptionId={activeOptionId}
         onActivate={setActiveTypeId}
+        onActivateOption={setActiveOptionId}
         onAddType={addType}
         onUpdateType={updateType}
         onRemoveType={removeType}
@@ -352,6 +372,7 @@ export default function ArticleAnnotate() {
               spans={spans}
               types={types}
               activeTypeId={activeTypeId}
+              activeOptionId={activeOptionId}
               onAddSpan={handleAddSpan}
               onUpdateSpan={handleUpdateSpan}
               onRemoveSpan={handleRemoveSpan}

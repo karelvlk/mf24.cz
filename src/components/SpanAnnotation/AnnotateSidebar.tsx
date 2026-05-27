@@ -7,7 +7,7 @@ import type {
   SpanAnnotation,
   Token,
 } from "@/lib/spanAnnotation";
-import { getSpanSnippet, shadeColor } from "@/lib/spanAnnotation";
+import { getSpanSnippet, shadeColor, shadeColorByOption } from "@/lib/spanAnnotation";
 import { Trash2 } from "lucide-react";
 import { useMemo } from "react";
 
@@ -142,9 +142,16 @@ export default function AnnotateSidebar({
                 </div>
                 <ul className="flex flex-col gap-1">
                   {list.map((span) => {
-                    const color = type.range
-                      ? shadeColor(type.color, span.value, type.range)
-                      : type.color;
+                    const color =
+                      type.options && type.options.length > 0
+                        ? shadeColorByOption(type.color, span.optionId, type.options)
+                        : type.range
+                          ? shadeColor(type.color, span.value, type.range)
+                          : type.color;
+                    const optionLabel =
+                      type.options && span.optionId
+                        ? type.options.find((o) => o.id === span.optionId)?.label
+                        : undefined;
                     const snippet = getSpanSnippet(span, tokens);
                     return (
                       <li key={span.id} className="group flex items-stretch gap-1">
@@ -159,6 +166,14 @@ export default function AnnotateSidebar({
                             aria-hidden
                           />
                           <span className="flex-1 text-zinc-700">
+                            {optionLabel && (
+                              <span
+                                className="mr-1 rounded px-1 text-[10px] font-semibold text-white"
+                                style={{ backgroundColor: color }}
+                              >
+                                {optionLabel}
+                              </span>
+                            )}
                             {snippet}
                             {type.range && span.value !== undefined && (
                               <span className="ml-1 rounded bg-zinc-100 px-1 text-[10px] text-zinc-600">

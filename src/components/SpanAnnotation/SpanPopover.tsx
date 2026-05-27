@@ -24,6 +24,7 @@ interface SpanPopoverProps {
   types: AnnotationType[];
   tokens: Token[];
   onChangeValue: (value: number) => void;
+  onChangeOption: (optionId: string) => void;
   onChangeType: (typeId: string) => void;
   onDelete: () => void;
 }
@@ -33,6 +34,7 @@ export default function SpanPopover({
   types,
   tokens,
   onChangeValue,
+  onChangeOption,
   onChangeType,
   onDelete,
 }: SpanPopoverProps) {
@@ -40,7 +42,9 @@ export default function SpanPopover({
   if (!type) return null;
 
   const range = type.range;
+  const options = type.options;
   const currentValue = span.value ?? range?.min;
+  const currentOptionId = span.optionId;
   const valueOptions: number[] = range
     ? Array.from(
         { length: Math.floor((range.max - range.min) / range.step) + 1 },
@@ -92,6 +96,33 @@ export default function SpanPopover({
           );
         })}
       </div>
+
+      {options && options.length > 0 && (
+        <>
+          <span className="h-6 w-px bg-zinc-200" />
+          <div className="flex items-center gap-0.5 px-1">
+            {options.map((opt) => {
+              const active = opt.id === currentOptionId;
+              return (
+                <Hint key={opt.id} label={opt.hint ?? opt.label}>
+                  <button
+                    type="button"
+                    onClick={() => onChangeOption(opt.id)}
+                    className={
+                      "inline-flex h-7 items-center justify-center rounded-full px-2 text-xs font-semibold transition-colors " +
+                      (active
+                        ? "bg-zinc-900 text-white"
+                        : "text-zinc-600 hover:bg-zinc-100")
+                    }
+                  >
+                    {opt.label}
+                  </button>
+                </Hint>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {range && (
         <>

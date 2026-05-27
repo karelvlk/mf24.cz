@@ -9,24 +9,26 @@ function storageKey(participantId: string) {
 }
 
 function loadTypes(participantId: string): AnnotationType[] {
-  if (!participantId) return [...SEED_ANNOTATION_TYPES];
+  const seeds = [...SEED_ANNOTATION_TYPES];
+  if (!participantId) return seeds;
   try {
     const raw = localStorage.getItem(storageKey(participantId));
-    if (!raw) {
-      return [...SEED_ANNOTATION_TYPES];
-    }
+    if (!raw) return seeds;
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [...SEED_ANNOTATION_TYPES];
+    if (!Array.isArray(parsed)) return seeds;
+    const seedIds = new Set(seeds.map((s) => s.id));
     const userTypes = parsed.filter(
       (t): t is AnnotationType =>
-        t && typeof t.id === "string" && typeof t.name === "string" && typeof t.color === "string",
-    );
-    const seeds = SEED_ANNOTATION_TYPES.filter(
-      (s) => !userTypes.some((u) => u.id === s.id),
-    );
+        t &&
+        typeof t.id === "string" &&
+        typeof t.name === "string" &&
+        typeof t.color === "string" &&
+        t.source !== "seed" &&
+        !seedIds.has(t.id),
+    ).map((t) => ({ ...t, category: t.category ?? "custom" as const }));
     return [...seeds, ...userTypes];
   } catch {
-    return [...SEED_ANNOTATION_TYPES];
+    return seeds;
   }
 }
 
@@ -40,22 +42,30 @@ export function useAnnotationTypes(participantId: string) {
   useEffect(() => {
     if (!participantId) return;
     try {
-      localStorage.setItem(storageKey(participantId), JSON.stringify(types));
+      const userOnly = types.filter((t) => t.source !== "seed");
+      localStorage.setItem(storageKey(participantId), JSON.stringify(userOnly));
     } catch {
       // ignore quota errors
     }
   }, [participantId, types]);
 
   const addType = useCallback((next: AnnotationType) => {
-    setTypes((prev) => [...prev, next]);
+    const withCategory: AnnotationType = {
+      ...next,
+      category: next.category ?? "custom",
+      source: next.source ?? "user",
+    };
+    setTypes((prev) => [...prev, withCategory]);
   }, []);
 
   const updateType = useCallback((id: string, patch: Partial<AnnotationType>) => {
-    setTypes((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+    setTypes((prev) =>
+      prev.map((t) => (t.id === id && !t.locked ? { ...t, ...patch } : t)),
+    );
   }, []);
 
   const removeType = useCallback((id: string) => {
-    setTypes((prev) => prev.filter((t) => t.id !== id || t.source === "seed"));
+    setTypes((prev) => prev.filter((t) => t.id !== id || t.locked));
   }, []);
 
   return { types, addType, updateType, removeType };

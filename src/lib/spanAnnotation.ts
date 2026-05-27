@@ -1,8 +1,26 @@
+export type AnnotationCategory =
+  | "expr"
+  | "appeal"
+  | "question"
+  | "untruth"
+  | "legit"
+  | "custom";
+
+export type AnnotationOption = {
+  id: string;
+  label: string;
+  hint?: string;
+};
+
 export type AnnotationType = {
   id: string;
   name: string;
   color: string;
   source: "seed" | "user";
+  category?: AnnotationCategory;
+  hint?: string;
+  locked?: boolean;
+  options?: AnnotationOption[];
   range?: {
     min: number;
     max: number;
@@ -18,6 +36,7 @@ export type SpanAnnotation = {
   startWord: number;
   endWord: number;
   value?: number;
+  optionId?: string;
 };
 
 export type Token = {
@@ -113,6 +132,25 @@ function parseHex(hex: string): { r: number; g: number; b: number } | null {
   const b = parseInt(expanded.slice(4, 6), 16);
   if ([r, g, b].some((v) => Number.isNaN(v))) return null;
   return { r, g, b };
+}
+
+export function shadeColorByOption(
+  baseHex: string,
+  optionId: string | undefined,
+  options: AnnotationOption[] | undefined,
+): string {
+  if (!options || options.length === 0 || !optionId) return baseHex;
+  const parsed = parseHex(baseHex);
+  if (!parsed) return baseHex;
+  const idx = options.findIndex((o) => o.id === optionId);
+  if (idx < 0) return baseHex;
+  const t = options.length === 1 ? 1 : idx / (options.length - 1);
+  const mix = 0.35 + t * 0.65;
+  const r = Math.round(255 - (255 - parsed.r) * mix);
+  const g = Math.round(255 - (255 - parsed.g) * mix);
+  const b = Math.round(255 - (255 - parsed.b) * mix);
+  const toHex = (x: number) => x.toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
 export function shadeColor(baseHex: string, value: number | undefined, range?: AnnotationType["range"]): string {

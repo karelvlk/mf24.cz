@@ -9,7 +9,7 @@ import type {
   SpanAnnotation,
   Token,
 } from "@/lib/spanAnnotation";
-import { assignSpanLayers, generateId, shadeColor } from "@/lib/spanAnnotation";
+import { assignSpanLayers, generateId, shadeColor, shadeColorByOption } from "@/lib/spanAnnotation";
 import {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
@@ -28,6 +28,7 @@ interface AnnotatableArticleProps {
   spans: SpanAnnotation[];
   types: AnnotationType[];
   activeTypeId: string | null;
+  activeOptionId?: string | null;
   onAddSpan: (span: SpanAnnotation) => void;
   onUpdateSpan: (id: string, patch: Partial<SpanAnnotation>) => void;
   onRemoveSpan: (id: string) => void;
@@ -90,6 +91,7 @@ export default function AnnotatableArticle({
   spans,
   types,
   activeTypeId,
+  activeOptionId,
   onAddSpan,
   onUpdateSpan,
   onRemoveSpan,
@@ -277,6 +279,8 @@ export default function AnnotatableArticle({
     right: number;
     y: number;
     value?: number;
+    optionLabel?: string;
+    isFirst: boolean;
     isDraft: boolean;
   };
 
@@ -292,12 +296,20 @@ export default function AnnotatableArticle({
       const type = typeMap.get(span.typeId);
       if (!type) continue;
       const baseColor = type.color;
-      const color =
-        !isDraft && type.range
-          ? shadeColor(baseColor, span.value, type.range)
-          : baseColor;
+      let color = baseColor;
+      if (!isDraft) {
+        if (type.options && type.options.length > 0) {
+          color = shadeColorByOption(baseColor, span.optionId, type.options);
+        } else if (type.range) {
+          color = shadeColor(baseColor, span.value, type.range);
+        }
+      }
       const layer = layerMap.get(span.id) ?? 0;
       const arr: Segment[] = [];
+      const optionLabel =
+        type.options && span.optionId
+          ? type.options.find((o) => o.id === span.optionId)?.label
+          : undefined;
 
       for (const line of lines) {
         let leftmost: TokenGeom | null = null;
@@ -322,6 +334,8 @@ export default function AnnotatableArticle({
           right: rightmost.right,
           y,
           value: span.value,
+          optionLabel,
+          isFirst: arr.length === 0,
           isDraft,
         });
       }
@@ -343,10 +357,31 @@ export default function AnnotatableArticle({
     if (!g) return null;
     let color: string | null = null;
     if (draft) {
-      color = typeMap.get(draft.typeId)?.color ?? null;
+      const t = typeMap.get(draft.typeId);
+      if (t) {
+        const opts = t.options;
+        color =
+          opts && opts.length > 0
+            ? shadeColorByOption(
+                t.color,
+                activeOptionId && opts.some((o) => o.id === activeOptionId)
+                  ? activeOptionId
+                  : opts[0].id,
+                opts,
+              )
+            : t.color;
+      }
     } else if (editing) {
       const span = spans.find((s) => s.id === editing.spanId);
-      if (span) color = typeMap.get(span.typeId)?.color ?? null;
+      if (span) {
+        const t = typeMap.get(span.typeId);
+        if (t) {
+          color =
+            t.options && t.options.length > 0
+              ? shadeColorByOption(t.color, span.optionId, t.options)
+              : t.color;
+        }
+      }
     }
     if (!color) return null;
     return {
@@ -356,7 +391,7 @@ export default function AnnotatableArticle({
       h: g.bottom - g.top + 2,
       color: hexToRgba(color, 0.25),
     };
-  }, [hoverTokenIdx, draft, editing, spans, typeMap]);
+  }, [hoverTokenIdx, draft, editing, spans, typeMap, activeOptionId]);
 
   const commitDraft = useCallback(
     (d: Draft) => {
@@ -365,9 +400,17 @@ export default function AnnotatableArticle({
       const type = typeMap.get(d.typeId);
       if (!type) return;
 
+      const targetOptionId =
+        type.options && type.options.length > 0
+          ? (activeOptionId && type.options.some((o) => o.id === activeOptionId)
+              ? activeOptionId
+              : type.options[0].id)
+          : undefined;
+
       const overlapping = spans.filter(
         (s) =>
           s.typeId === d.typeId &&
+          s.optionId === targetOptionId &&
           !(s.endWord < start || s.startWord > end),
       );
 
@@ -378,6 +421,7 @@ export default function AnnotatableArticle({
           startWord: start,
           endWord: end,
           value: type.range ? type.range.min : undefined,
+          optionId: targetOptionId,
         });
         return;
       }
@@ -390,7 +434,7 @@ export default function AnnotatableArticle({
         onRemoveSpan(overlapping[i].id);
       }
     },
-    [onAddSpan, onRemoveSpan, onUpdateSpan, spans, typeMap],
+    [activeOptionId, onAddSpan, onRemoveSpan, onUpdateSpan, spans, typeMap],
   );
 
   const mergeAfterEdit = useCallback(
@@ -401,6 +445,7 @@ export default function AnnotatableArticle({
         (s) =>
           s.id !== spanId &&
           s.typeId === span.typeId &&
+          s.optionId === span.optionId &&
           !(s.endWord < span.startWord || s.startWord > span.endWord),
       );
       if (overlapping.length === 0) return;
@@ -771,6 +816,19 @@ export default function AnnotatableArticle({
                 opacity={opacity}
                 style={{ pointerEvents: "none" }}
               />
+              {seg.isFirst && seg.optionLabel && !seg.isDraft && (
+                <text
+                  x={seg.left + 8}
+                  y={seg.y - STROKE_WIDTH / 2 - 2}
+                  fontSize={10}
+                  fontWeight={600}
+                  fill={seg.color}
+                  style={{ pointerEvents: "none", userSelect: "none" }}
+                  opacity={opacity}
+                >
+                  {seg.optionLabel}
+                </text>
+              )}
             </g>
           );
         })}
@@ -848,13 +906,56 @@ export default function AnnotatableArticle({
                 types={types}
                 tokens={tokens}
                 onChangeValue={(value) => onUpdateSpan(sp.id, { value })}
+                onChangeOption={(optionId) => {
+                  if (optionId === sp.optionId) return;
+                  const overlapping = spans.filter(
+                    (s) =>
+                      s.id !== sp.id &&
+                      s.typeId === sp.typeId &&
+                      s.optionId === optionId &&
+                      !(s.endWord < sp.startWord || s.startWord > sp.endWord),
+                  );
+                  if (overlapping.length === 0) {
+                    onUpdateSpan(sp.id, { optionId });
+                    return;
+                  }
+                  const unionStart = Math.min(
+                    sp.startWord,
+                    ...overlapping.map((s) => s.startWord),
+                  );
+                  const unionEnd = Math.max(
+                    sp.endWord,
+                    ...overlapping.map((s) => s.endWord),
+                  );
+                  onUpdateSpan(sp.id, {
+                    optionId,
+                    startWord: unionStart,
+                    endWord: unionEnd,
+                  });
+                  for (const other of overlapping) onRemoveSpan(other.id);
+                  setPopoverAt((prev) => {
+                    if (!prev) return null;
+                    const removedIds = new Set(overlapping.map((o) => o.id));
+                    const remaining = prev.spanIds.filter(
+                      (id) => !removedIds.has(id),
+                    );
+                    return remaining.length === 0
+                      ? null
+                      : { ...prev, spanIds: remaining };
+                  });
+                }}
                 onChangeType={(typeId) => {
                   if (typeId === sp.typeId) return;
                   const newType = typeMap.get(typeId);
+                  const newOptionId =
+                    newType?.options && newType.options.length > 0
+                      ? newType.options[0].id
+                      : undefined;
                   const overlapping = spans.filter(
                     (s) =>
                       s.id !== sp.id &&
                       s.typeId === typeId &&
+                      s.optionId === newOptionId &&
                       !(s.endWord < sp.startWord || s.startWord > sp.endWord),
                   );
                   const unionStart = Math.min(
@@ -871,6 +972,10 @@ export default function AnnotatableArticle({
                     endWord: unionEnd,
                   };
                   patch.value = newType?.range ? newType.range.min : undefined;
+                  patch.optionId =
+                    newType?.options && newType.options.length > 0
+                      ? newType.options[0].id
+                      : undefined;
                   onUpdateSpan(sp.id, patch);
                   for (const other of overlapping) onRemoveSpan(other.id);
                   if (overlapping.length > 0) {
