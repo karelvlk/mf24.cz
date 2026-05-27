@@ -4,7 +4,10 @@ import AnnotateSidebar from "@/components/SpanAnnotation/AnnotateSidebar";
 import AnnotateToolbar from "@/components/SpanAnnotation/AnnotateToolbar";
 import AnnotatorPrompt from "@/components/SpanAnnotation/AnnotatorPrompt";
 import { Button } from "@/components/ui/button";
-import { annotationArticles } from "@/data/news";
+import {
+  useAnnotationArticles,
+  useAnnotationArticlesState,
+} from "@/context/AnnotationArticlesContext";
 import { useToast } from "@/hooks/use-toast";
 import {
   AnnotateAnswers,
@@ -39,9 +42,11 @@ export default function ArticleAnnotate() {
   const annotator = searchParams.get("annotator")?.trim() ?? "";
   const hasAnnotator = annotator.length > 0;
 
+  const annotationArticles = useAnnotationArticles();
+  const articlesState = useAnnotationArticlesState();
   const article = useMemo(
     () => annotationArticles.find((a) => a.id === articleId) ?? null,
-    [articleId],
+    [articleId, annotationArticles],
   );
 
   const pages = useMemo(() => {
@@ -79,7 +84,7 @@ export default function ArticleAnnotate() {
       [...annotationArticles].sort((a, b) =>
         a.id.localeCompare(b.id, undefined, { numeric: true }),
       ),
-    [],
+    [annotationArticles],
   );
 
   const [hydrated, setHydrated] = useState(false);
@@ -309,6 +314,13 @@ export default function ArticleAnnotate() {
   }
 
   if (!article) {
+    if (!articlesState.loaded) {
+      return (
+        <div className="flex h-screen flex-col items-center justify-center gap-3">
+          <p className="text-sm text-muted-foreground">Načítám…</p>
+        </div>
+      );
+    }
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-3">
         <p className="text-sm text-muted-foreground">Článek nenalezen.</p>

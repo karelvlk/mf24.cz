@@ -44,9 +44,29 @@ SELECT '=== overview ===' AS section;
 SELECT
   (SELECT COUNT(*) FROM annotations) AS total_annotations,
   (SELECT COUNT(DISTINCT annotator_id) FROM annotations) AS annotators,
-  (SELECT COUNT(DISTINCT article_id) FROM annotations) AS articles_covered,
+  (SELECT COUNT(DISTINCT article_id) FROM annotations) AS articles_annotated,
+  (SELECT COUNT(*) FROM articles) AS articles_total,
   (SELECT MIN(submitted_at) FROM annotations) AS first_submission,
   (SELECT MAX(submitted_at) FROM annotations) AS last_submission;
+
+SELECT '';
+SELECT '=== articles ===' AS section;
+SELECT
+  COUNT(*) AS total,
+  SUM(CASE WHEN dezinfo = 1 THEN 1 ELSE 0 END) AS dezinfo,
+  SUM(CASE WHEN manip = 1 THEN 1 ELSE 0 END) AS manip,
+  COUNT(DISTINCT theme) AS themes
+FROM articles;
+
+SELECT '';
+SELECT '=== articles annotation coverage ===' AS section;
+SELECT a.theme,
+       COUNT(DISTINCT a.article_id) AS articles,
+       COUNT(DISTINCT ann.article_id) AS annotated
+FROM articles a
+LEFT JOIN annotations ann ON ann.article_id = a.article_id
+GROUP BY a.theme
+ORDER BY articles DESC;
 
 SELECT '';
 SELECT '=== per annotator ===' AS section;

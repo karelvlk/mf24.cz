@@ -20,9 +20,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useAnnotationArticles } from "@/context/AnnotationArticlesContext";
 import { useExperimentMode } from "@/context/ExperimentModeContext";
 import {
-  annotationArticles,
   datasetOrderingOptions,
   datasetPreviewRows,
   getEmptyFillerArticles,
@@ -47,6 +47,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 const Index = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const annotationArticles = useAnnotationArticles();
   const {
     isActive,
     mode,
@@ -88,7 +89,7 @@ const Index = () => {
     const baseIds = new Set(base.map((a) => a.id));
     const extra = annotationArticles.filter((a) => !baseIds.has(a.id));
     return [...base, ...extra];
-  }, []);
+  }, [annotationArticles]);
 
   const articleDictionary = useMemo(() => {
     return allArticles.reduce((acc, article) => {

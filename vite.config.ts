@@ -8,7 +8,9 @@ import {
   exportCsv,
   getAllAnnotations,
   getAnnotationsByAnnotator,
+  getArticles,
   getLatestAnnotations,
+  initDb,
   insertAnnotation,
 } from "./server/annotationsDb";
 
@@ -16,6 +18,28 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const API_BASE = "/api/save-annotation";
+
+const ARTICLES_API = "/api/articles";
+
+const articlesMiddleware = (req: any, res: any, next: any) => {
+  const rawUrl: string = req.url ?? "";
+  if (rawUrl.indexOf(ARTICLES_API) === -1) return next();
+  if (req.method !== "GET") {
+    res.statusCode = 405;
+    res.end(JSON.stringify({ error: "Method not allowed" }));
+    return;
+  }
+  try {
+    const list = getArticles(__dirname);
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify(list));
+  } catch (error) {
+    console.error("[Vite Middleware] Error reading articles:", error);
+    res.statusCode = 500;
+    res.end(JSON.stringify({ error: "Internal Server Error" }));
+  }
+};
 
 const saveAnnotationsMiddleware = (req: any, res: any, next: any) => {
   const rawUrl: string = req.url ?? "";
@@ -123,9 +147,13 @@ const saveAnnotationsMiddleware = (req: any, res: any, next: any) => {
 const saveAnnotationsPlugin = () => ({
   name: "save-annotations",
   configureServer(server: any) {
+    initDb(__dirname);
+    server.middlewares.use(articlesMiddleware);
     server.middlewares.use(saveAnnotationsMiddleware);
   },
   configurePreviewServer(server: any) {
+    initDb(__dirname);
+    server.middlewares.use(articlesMiddleware);
     server.middlewares.use(saveAnnotationsMiddleware);
   },
 });

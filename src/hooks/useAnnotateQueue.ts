@@ -1,15 +1,17 @@
-import { annotationArticles } from "@/data/news";
+import { useAnnotationArticles } from "@/context/AnnotationArticlesContext";
 import { useCallback, useMemo } from "react";
 
 export function useAnnotateQueue(annotatedIds: Set<string>) {
+  const articles = useAnnotationArticles();
+
   const allIds = useMemo(
     () =>
-      [...annotationArticles]
+      [...articles]
         .sort((a, b) =>
           a.id.localeCompare(b.id, undefined, { numeric: true }),
         )
         .map((a) => a.id),
-    [],
+    [articles],
   );
 
   const nextUnvisited = useCallback(

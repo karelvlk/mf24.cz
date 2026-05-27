@@ -1,6 +1,13 @@
 import AnnotationSlide from "@/components/AnnotationSlide";
 import NewsHeader from "@/components/NewsHeader";
 import QuestionSlide from "@/components/QuestionSlide";
+import AnnotatableArticle from "@/components/SpanAnnotation/AnnotatableArticle";
+import TypeToolbar from "@/components/SpanAnnotation/TypeToolbar";
+import { useAnnotationTypes } from "@/hooks/useAnnotationTypes";
+import {
+  type SpanAnnotation,
+  tokenizePages,
+} from "@/lib/spanAnnotation";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,7 +25,8 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useExperimentMode } from "@/context/ExperimentModeContext";
 import { useScreenshotMode } from "@/context/ScreenshotModeContext";
-import { annotationArticles, emptyFillerArticles, newsData } from "@/data/news";
+import { useAnnotationArticles } from "@/context/AnnotationArticlesContext";
+import { emptyFillerArticles, newsData } from "@/data/news";
 import { useToast } from "@/hooks/use-toast";
 import { paginateArticleContent } from "@/lib/utils";
 import { Settings2 } from "lucide-react";
@@ -66,6 +74,7 @@ export default function ArticleDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const annotationArticles = useAnnotationArticles();
   const { isActive: experimentActive, markArticleVisited, mode, saveAnnotation, participantId, endExperiment } = useExperimentMode();
   const screenshotMode = useScreenshotMode();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -100,6 +109,11 @@ export default function ArticleDetail() {
   const [manipulativenessLabel3, setManipulativenessLabel3] = useState(DEFAULT_MANIPULATIVENESS_LABEL_3);
   const [manipulativenessLabel5, setManipulativenessLabel5] = useState(DEFAULT_MANIPULATIVENESS_LABEL_5);
   const [pages, setPages] = useState<string[]>([""]);
+  const [activeTypeId, setActiveTypeId] = useState<string | null>(null);
+  const [spans, setSpans] = useState<SpanAnnotation[]>([]);
+  const { types: annotationTypes, addType, updateType, removeType } = useAnnotationTypes(
+    mode === "annotate" ? participantId : "",
+  );
 
   // Find article in all categories (include annotation articles from merged_data.csv)
   const allArticles = [
@@ -316,6 +330,31 @@ export default function ArticleDetail() {
     setPages(computedPages);
   }, [articleBody, fontSize, isMonospace, lineHeight, textContainerSize]);
 
+  const { tokens: spanTokens, pageRanges: spanPageRanges } = useMemo(
+    () => tokenizePages(pages),
+    [pages],
+  );
+
+  useEffect(() => {
+    setSpans([]);
+    setActiveTypeId(null);
+  }, [article?.id]);
+
+  const handleAddSpan = useCallback((next: SpanAnnotation) => {
+    setSpans((prev) => [...prev, next]);
+  }, []);
+
+  const handleUpdateSpan = useCallback(
+    (id: string, patch: Partial<SpanAnnotation>) => {
+      setSpans((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+    },
+    [],
+  );
+
+  const handleRemoveSpan = useCallback((id: string) => {
+    setSpans((prev) => prev.filter((s) => s.id !== id));
+  }, []);
+
   const slides = useMemo<SlideDescriptor[]>(() => {
     const computed: SlideDescriptor[] = pages.map((_, index) => ({
       type: "page",
@@ -365,10 +404,14 @@ export default function ArticleDetail() {
       return;
     }
 
-    saveAnnotation(article.id, annotationAnswers);
+    saveAnnotation(article.id, {
+      ...annotationAnswers,
+      spans,
+      types: annotationTypes,
+    });
     markArticleVisited(article.id);
     navigate('/');
-  }, [annotationAnswers, article, canSubmitAnnotation, markArticleVisited, mode, navigate, saveAnnotation, toast]);
+  }, [annotationAnswers, annotationTypes, article, canSubmitAnnotation, markArticleVisited, mode, navigate, saveAnnotation, spans, toast]);
 
   const validateSlideNavigation = useCallback(
     (descriptor: SlideDescriptor | null) => {
@@ -996,20 +1039,52 @@ export default function ArticleDetail() {
                 >
                   {currentSlideDescriptor?.type === "page" &&
                     typeof currentSlideDescriptor.index === "number" && (
-                      <p
-                        className="text-foreground/80 whitespace-pre-line"
-                        style={{
-                          fontSize: `${fontSize}px`,
-                          lineHeight: lineHeight,
-                          fontFamily: isMonospace ? MONOSPACE_FONT_STACK : undefined,
-                          textAlign: isJustified ? 'justify' : 'left'
-                        }}
-                      >
-                        {(pages[currentSlideDescriptor.index] ?? "")
-                          .replace(/\n+/g, " ")
-                          .replace(/\b([kKsSvVzZ])\s+/g, "$1\u00A0")
-                          .trim()}
-                      </p>
+                      mode === "annotate" ? (
+                        <div className="flex flex-col gap-3">
+                          <TypeToolbar
+                            types={annotationTypes}
+                            activeTypeId={activeTypeId}
+                            onActivate={setActiveTypeId}
+                            onAddType={addType}
+                            onUpdateType={updateType}
+                            onRemoveType={removeType}
+                          />
+                          <AnnotatableArticle
+                            tokens={spanTokens}
+                            pageRange={
+                              spanPageRanges[currentSlideDescriptor.index] ?? {
+                                start: 0,
+                                end: 0,
+                              }
+                            }
+                            spans={spans}
+                            types={annotationTypes}
+                            activeTypeId={activeTypeId}
+                            onAddSpan={handleAddSpan}
+                            onUpdateSpan={handleUpdateSpan}
+                            onRemoveSpan={handleRemoveSpan}
+                            fontSize={fontSize}
+                            lineHeight={lineHeight}
+                            fontFamily={isMonospace ? MONOSPACE_FONT_STACK : undefined}
+                            textAlign={isJustified ? "justify" : "left"}
+                          />
+                        </div>
+                      ) : (
+                        <p
+                          className="text-foreground/80 whitespace-pre-line"
+                          style={{
+                            fontSize: `${fontSize}px`,
+                            lineHeight: lineHeight,
+                            fontFamily: isMonospace ? MONOSPACE_FONT_STACK : undefined,
+                            textAlign: isJustified ? 'justify' : 'left'
+                          }}
+                        >
+                          {(pages[currentSlideDescriptor.index] ?? "")
+                            .replace(/\n+/g, " ")
+                            .replace(/\b([kKsSvVzZ])\s+/g, "$1\u00A0")
+                            .trim()}
+                        </p>
+                      )
                     )}
 
                 {currentSlideDescriptor?.type === "question" &&

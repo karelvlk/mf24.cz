@@ -777,10 +777,9 @@ export function getEmptyFillerArticles(): NewsArticle[] {
   return emptyFillerArticles;
 }
 
-export const annotationArticles: NewsArticle[] =
-  datasetBaseArticles && datasetBaseArticles.length > 0
-    ? datasetBaseArticles
-    : mergedDataArticles;
+// Annotation articles are now sourced from the SQLite DB at runtime via
+// /api/articles and the AnnotationArticlesContext. CSV remains a build-time
+// source only for the dataset preview table and ordering options below.
 
 export const datasetOrderingOptions: DatasetOrdering[] = datasetOrderings;
 export const datasetPreviewRows: DatasetPreviewRow[] = datasetBaseRows.map(

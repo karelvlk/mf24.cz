@@ -1,6 +1,7 @@
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AnnotationArticlesProvider } from "@/context/AnnotationArticlesContext";
 import { ExperimentModeProvider } from "@/context/ExperimentModeContext";
 import { ScreenshotModeProvider } from "@/context/ScreenshotModeContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -21,6 +22,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <ExperimentModeProvider>
+        <AnnotationArticlesProvider>
         <BrowserRouter basename={import.meta.env.BASE_URL}>
           <ScreenshotModeProvider>
             <Routes>
@@ -35,6 +37,7 @@ const App = () => (
             </Routes>
           </ScreenshotModeProvider>
         </BrowserRouter>
+        </AnnotationArticlesProvider>
       </ExperimentModeProvider>
     </TooltipProvider>
   </QueryClientProvider>

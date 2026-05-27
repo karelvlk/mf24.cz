@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { annotationArticles } from "@/data/news";
+import { useAnnotationArticles } from "@/context/AnnotationArticlesContext";
 import { deleteAllAnnotationsForAnnotator } from "@/hooks/useAnnotatorAnnotations";
 import { CheckCircle2 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -9,6 +9,7 @@ export default function AnnotateDone() {
   const navigate = useNavigate();
   const annotator = searchParams.get("annotator")?.trim() ?? "";
 
+  const annotationArticles = useAnnotationArticles();
   const sortedIds = [...annotationArticles]
     .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))
     .map((a) => a.id);

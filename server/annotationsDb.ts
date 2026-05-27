@@ -56,10 +56,225 @@ function getDb(rootDir: string): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_article ON annotations(article_id);
     CREATE INDEX IF NOT EXISTS idx_pair ON annotations(annotator_id, article_id);
     CREATE INDEX IF NOT EXISTS idx_submitted ON annotations(submitted_at);
+
+    CREATE TABLE IF NOT EXISTS articles (
+      article_id TEXT PRIMARY KEY,
+      dataset TEXT NOT NULL,
+      pseudotitle TEXT,
+      title TEXT,
+      source TEXT,
+      content TEXT,
+      question TEXT,
+      answer TEXT,
+      theme TEXT,
+      manip INTEGER,
+      dezinfo INTEGER,
+      csv_row_index INTEGER,
+      category TEXT,
+      perex TEXT,
+      author TEXT,
+      published TEXT,
+      updated_at TEXT NOT NULL
+    );
+    -- additive migration: ensure new columns exist on pre-existing tables
+  `);
+  for (const col of [
+    "category TEXT",
+    "perex TEXT",
+    "author TEXT",
+    "published TEXT",
+  ]) {
+    try {
+      db.exec(`ALTER TABLE articles ADD COLUMN ${col}`);
+    } catch {
+      // already exists
+    }
+  }
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_articles_theme ON articles(theme);
+    CREATE INDEX IF NOT EXISTS idx_articles_dezinfo ON articles(dezinfo);
   `);
   dbInstance = db;
   maybeMigrateJson(rootDir);
+  try {
+    syncArticlesFromCsv(rootDir);
+  } catch (e) {
+    console.error("[annotationsDb] Article sync failed:", e);
+  }
   return db;
+}
+
+function parseCsvText(text: string): string[][] {
+  const rows: string[][] = [];
+  let field = "";
+  let row: string[] = [];
+  let inQuotes = false;
+  let i = 0;
+  while (i < text.length) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
+          i += 2;
+          continue;
+        }
+        inQuotes = false;
+        i += 1;
+        continue;
+      }
+      field += c;
+      i += 1;
+      continue;
+    }
+    if (c === '"') {
+      inQuotes = true;
+      i += 1;
+      continue;
+    }
+    if (c === ",") {
+      row.push(field);
+      field = "";
+      i += 1;
+      continue;
+    }
+    if (c === "\r") {
+      i += 1;
+      continue;
+    }
+    if (c === "\n") {
+      row.push(field);
+      rows.push(row);
+      field = "";
+      row = [];
+      i += 1;
+      continue;
+    }
+    field += c;
+    i += 1;
+  }
+  if (field.length > 0 || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows;
+}
+
+const CATEGORY_MAP: Record<string, string> = {
+  zdravi: "zdravi",
+  priroda: "priroda",
+  "domaci-politika": "ceska-politika",
+  "ceska-politika": "ceska-politika",
+  "svetova-politika": "zahranicni-politika",
+  "zahranicni-politika": "zahranicni-politika",
+};
+
+function normalizeCategory(category: string | undefined): string {
+  return CATEGORY_MAP[(category ?? "").trim().toLowerCase()] ?? "pohady";
+}
+
+function randomTimestamp(): string {
+  const hour = Math.floor(Math.random() * 24);
+  const minute = Math.floor(Math.random() * 60);
+  return `${hour}:${minute.toString().padStart(2, "0")}`;
+}
+
+const AUTHORS = ["DEZIPER", "Redakce", "Anonymní zdroj", "Externí autor"];
+function pickRandomAuthor(): string {
+  return AUTHORS[Math.floor(Math.random() * AUTHORS.length)];
+}
+
+function parseBoolish(v: string | undefined): number | null {
+  if (v === undefined) return null;
+  const s = v.trim().toLowerCase();
+  if (!s) return null;
+  if (["1", "true", "yes", "ano", "ja"].includes(s)) return 1;
+  if (["0", "false", "no", "ne", "nein"].includes(s)) return 0;
+  return null;
+}
+
+export function syncArticlesFromCsv(rootDir: string): number {
+  const db = dbInstance;
+  if (!db) return 0;
+  const csvPath = path.resolve(rootDir, "data", "datasets", "A.csv");
+  if (!fs.existsSync(csvPath)) {
+    console.warn("[annotationsDb] A.csv not found, skipping article sync");
+    return 0;
+  }
+  const text = fs.readFileSync(csvPath, "utf8");
+  const table = parseCsvText(text);
+  if (table.length < 2) return 0;
+  // Header is on the 2nd row in this dataset (1st row is "Polozka, 1, 2 ...").
+  const headerRowIdx = table[0][0]?.trim().toLowerCase() === "polozka" ? 1 : 0;
+  const header = table[headerRowIdx].map((h) => h.trim());
+  const col = (name: string) => header.indexOf(name);
+  const idxIndex = col("index");
+  const idxPseudo = col("pseudotitle");
+  const idxTitle = col("title");
+  const idxSource = col("source");
+  const idxContent = col("content");
+  const idxQuestion = col("question");
+  const idxAnswer = col("answer");
+  const idxTheme = col("theme");
+  const idxManip = col("manip");
+  const idxDezinfo = col("dezinfo");
+
+  const now = new Date().toISOString();
+  const upsert = db.prepare(`
+    INSERT INTO articles
+      (article_id, dataset, pseudotitle, title, source, content, question, answer,
+       theme, manip, dezinfo, csv_row_index, category, perex, author, published, updated_at)
+    VALUES (?, 'A', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(article_id) DO UPDATE SET
+      pseudotitle = excluded.pseudotitle,
+      title = excluded.title,
+      source = excluded.source,
+      content = excluded.content,
+      question = excluded.question,
+      answer = excluded.answer,
+      theme = excluded.theme,
+      manip = excluded.manip,
+      dezinfo = excluded.dezinfo,
+      csv_row_index = excluded.csv_row_index,
+      category = COALESCE(articles.category, excluded.category),
+      perex = COALESCE(articles.perex, excluded.perex),
+      author = COALESCE(articles.author, excluded.author),
+      published = COALESCE(articles.published, excluded.published),
+      updated_at = excluded.updated_at
+  `);
+
+  let count = 0;
+  const tx = db.transaction(() => {
+    for (let r = headerRowIdx + 1; r < table.length; r += 1) {
+      const row = table[r];
+      if (!row || row.every((v) => !v?.trim())) continue;
+      const articleId = (row[idxIndex] ?? "").trim();
+      if (!articleId) continue;
+      const theme = row[idxTheme];
+      upsert.run(
+        articleId,
+        row[idxPseudo] ?? null,
+        row[idxTitle] ?? null,
+        row[idxSource] ?? null,
+        row[idxContent] ?? null,
+        row[idxQuestion] ?? null,
+        row[idxAnswer] ?? null,
+        theme ?? null,
+        parseBoolish(row[idxManip]),
+        parseBoolish(row[idxDezinfo]),
+        r,
+        normalizeCategory(theme),
+        "Klikněte pro zobrazení článku...",
+        pickRandomAuthor(),
+        randomTimestamp(),
+        now,
+      );
+      count += 1;
+    }
+  });
+  tx();
+  console.log(`[annotationsDb] Synced ${count} articles from ${csvPath}`);
+  return count;
 }
 
 function maybeMigrateJson(rootDir: string) {
@@ -115,6 +330,75 @@ function maybeMigrateJson(rootDir: string) {
   } catch {
     // ignore
   }
+}
+
+export function initDb(rootDir: string) {
+  getDb(rootDir);
+}
+
+export type ArticleApi = {
+  id: string;
+  title: string;
+  perex: string;
+  content?: string;
+  category: string;
+  published: string;
+  author: string;
+  dezinformative: boolean;
+  manipulative: boolean;
+  question: Array<{
+    question: string;
+    answers: Array<{ text: string; is_correct: boolean }>;
+  }>;
+};
+
+function parseBooleanField(value: string | null | undefined): boolean {
+  if (value === null || value === undefined) return false;
+  const s = String(value).trim().toLowerCase();
+  return ["1", "true", "yes", "ano", "ja"].includes(s);
+}
+
+export function getArticles(rootDir: string): ArticleApi[] {
+  const db = getDb(rootDir);
+  const rows = db
+    .prepare(
+      `SELECT article_id, title, pseudotitle, perex, content, category, theme,
+              published, author, manip, dezinfo, question, answer, csv_row_index
+       FROM articles
+       ORDER BY CAST(csv_row_index AS INTEGER) ASC`,
+    )
+    .all() as Array<Record<string, string | number | null>>;
+  return rows.map((r) => {
+    const yesIsCorrect = parseBooleanField(
+      r.answer as string | null | undefined,
+    );
+    const questionText = (r.question as string | null) ?? "";
+    return {
+      id: String(r.article_id),
+      title:
+        (r.title as string | null)?.trim() ||
+        (r.pseudotitle as string | null)?.trim() ||
+        "Bez názvu",
+      perex: (r.perex as string | null) ?? "Klikněte pro zobrazení článku...",
+      content: (r.content as string | null) ?? "",
+      category: (r.category as string | null) ?? "pohady",
+      published: (r.published as string | null) ?? "",
+      author: (r.author as string | null) ?? "DEZIPER",
+      dezinformative: r.dezinfo === 1,
+      manipulative: r.manip === 1,
+      question: questionText
+        ? [
+            {
+              question: questionText,
+              answers: [
+                { text: "Ano", is_correct: yesIsCorrect },
+                { text: "Ne", is_correct: !yesIsCorrect },
+              ],
+            },
+          ]
+        : [],
+    };
+  });
 }
 
 export function insertAnnotation(rootDir: string, payload: AnnotationPayload) {
