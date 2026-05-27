@@ -99,6 +99,37 @@ This file is automatically created when the first data is saved.
 - **Docker**: The `data-records` folder is mounted as a volume, so data persists even if the container is removed.
 - **Local/Manual**: The folder is created in the project root.
 
+## Backups
+
+A daily backup of the annotations SQLite DB plus a quick stats report is bundled into a single `.tar.gz` per run.
+
+Run manually:
+
+```bash
+scripts/backup-annotations.sh
+```
+
+Cron entry (3:00 every day):
+
+```cron
+0 3 * * * /path/to/mf24.cz/scripts/backup-annotations.sh >> /var/log/mf24-backup.log 2>&1
+```
+
+Each archive in `backups/annotations-YYYYMMDD-HHMMSS.tar.gz` contains:
+
+- `annotations.db` — consistent snapshot via SQLite online-backup API (safe on a live DB)
+- `annotations.sql` — plain-text dump for diff/grep
+- `stats.txt` — overview, per-annotator activity, last 7 days, spans per type and per type+variant, ratings
+- `manifest.txt` — host, timestamp, sizes
+
+Configuration via env vars:
+
+- `DB_PATH` — source DB (default `data-records/annotations.db`)
+- `BACKUP_DIR` — output directory (default `backups/`)
+- `RETENTION_DAYS` — auto-prune archives older than N days (default `60`)
+
+Requires `sqlite3` CLI in `PATH`.
+
 ## Environment Variables
 
 - `ENV_NAME`: Set to `experiment` to enable the "Experiment" button on the home screen. If not set, only "Annotate" mode is available.
