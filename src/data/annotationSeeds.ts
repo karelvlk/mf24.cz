@@ -49,7 +49,8 @@ const SEED_OPTIONS: Partial<Record<Exclude<AnnotationCategory, "custom">, Annota
     { id: "EmApp", label: "EmApp", hint: "Emocionální apel" },
     { id: "UrApp", label: "UrApp", hint: "Apel na naléhavost (urgency)" },
     { id: "AuApp", label: "AuApp", hint: "Apel na autoritu" },
-    { id: "BaApp", label: "BaApp", hint: "Bandwagon – přidejte se k většině / k vítězi" },
+    { id: "UvTApp", label: "UvTApp", hint: "Us vs. Them – vytváření falešného rozdělení mezi lidmi na základě problematického znaku (etnicita, názorový proud apod.)" },
+    { id: "BaApp", label: "BaApp", hint: "Bandwagon – přidejte se k většině / k vítězi (oproti UvTApp nastává až konsekventně)" },
   ],
   question: [
     { id: "LeQ", label: "LeQ", hint: "Návodná otázka (nucení k potvrzení, očekávání souhlasu)" },
@@ -57,6 +58,17 @@ const SEED_OPTIONS: Partial<Record<Exclude<AnnotationCategory, "custom">, Annota
     { id: "HyQ", label: "HyQ", hint: "Hypotetická otázka – irelevantní scénáře" },
     { id: "FPQ", label: "FPQ", hint: "Falešný předpoklad v otázce" },
     { id: "LQ", label: "LQ", hint: "Loaded – v podtextu předsudek vůči někomu" },
+  ],
+  untruth: [
+    { id: "FalseFab", label: "FalseFab", hint: "Výmysl, odkaz na neexistující entitu" },
+    { id: "FalseWrong", label: "FalseWrong", hint: "Nesprávný údaj" },
+    { id: "FalseUnver", label: "FalseUnver", hint: "Nedoložitelný údaj" },
+    { id: "FalseIncons", label: "FalseIncons", hint: "Inkonzistence tvrzení v rámci textu samotného" },
+    { id: "FalseExagg", label: "FalseExagg", hint: "Přehánění a zkreslování (superlativy, absolutní tvrzení)" },
+    { id: "FalseContext", label: "FalseContext", hint: "Chybějící kontext (údaj pravdivý v jiném kontextu, který zde chybí)" },
+    { id: "FalseRepe", label: "FalseRepe", hint: "Opakování a propagandistické fráze" },
+    { id: "FalseSource", label: "FalseSource", hint: "Pochybný zdroj informace (neznámý nebo nedůvěryhodný)" },
+    { id: "FalseUnkSrc", label: "FalseUnkSrc", hint: "Nejasné autorství/reference – „my“ místo konkrétního subjektu" },
   ],
   legit: [
     { id: "LTA", label: "LTA", hint: "Autorizace – odvolání se na autoritu (bez pobídky k akci)" },
