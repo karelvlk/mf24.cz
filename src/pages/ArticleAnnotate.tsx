@@ -13,8 +13,8 @@ import {
   AnnotateAnswers,
   clearDraft,
   loadDraft,
-  useAnnotateDraft,
 } from "@/hooks/useAnnotateDraft";
+import { useServerAutosave } from "@/hooks/useServerAutosave";
 import { useAnnotateQueue } from "@/hooks/useAnnotateQueue";
 import { useAnnotationTypes } from "@/hooks/useAnnotationTypes";
 import {
@@ -67,8 +67,14 @@ export default function ArticleAnnotate() {
   } = useAnnotationTypes(annotator);
 
   const annotatorAnnotations = useAnnotatorAnnotations(annotator);
+  // only fully submitted articles count as "done" for the queue / progress
   const annotatedIds = useMemo(
-    () => new Set(annotatorAnnotations.byArticle.keys()),
+    () =>
+      new Set(
+        [...annotatorAnnotations.byArticle.values()]
+          .filter((a) => a.status === "submitted")
+          .map((a) => a.articleId),
+      ),
     [annotatorAnnotations.byArticle],
   );
   const queue = useAnnotateQueue(annotatedIds);
@@ -149,11 +155,46 @@ export default function ArticleAnnotate() {
     annotatorAnnotations.byArticle,
   ]);
 
-  const saveStatus = useAnnotateDraft(
+  const {
+    status: saveStatus,
+    hasPending,
+    flush,
+  } = useServerAutosave(
     annotator,
     articleId ?? "",
-    useMemo(() => ({ spans, answers }), [spans, answers]),
+    useMemo(() => ({ spans, answers, types }), [spans, answers, types]),
     hydrated,
+  );
+
+  // warn on tab close / refresh while changes aren't safely on the server
+  useEffect(() => {
+    if (!hasPending) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasPending]);
+
+  // flush pending changes before in-app navigation; confirm if the flush fails
+  const guardedNavigate = useCallback(
+    async (go: () => void) => {
+      if (!hasPending) {
+        go();
+        return;
+      }
+      const ok = await flush();
+      if (ok) {
+        go();
+        return;
+      }
+      const proceed = window.confirm(
+        "Změny se nepodařilo uložit na server. Opravdu odejít? Změny zůstanou uložené lokálně.",
+      );
+      if (proceed) go();
+    },
+    [hasPending, flush],
   );
 
   const handleAddSpan = useCallback((s: SpanAnnotation) => {
@@ -197,6 +238,7 @@ export default function ArticleAnnotate() {
         types,
       },
       timestamp: new Date().toISOString(),
+      status: "submitted" as const,
     };
     try {
       const existing = localStorage.getItem("annotation_results");
@@ -207,13 +249,22 @@ export default function ArticleAnnotate() {
       // ignore
     }
     try {
-      await fetch(`${import.meta.env.BASE_URL}api/save-annotation`, {
+      const resp = await fetch(`${import.meta.env.BASE_URL}api/save-annotation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     } catch (err) {
       console.error("Failed to save annotation:", err);
+      setSubmitting(false);
+      toast({
+        title: "Uložení selhalo",
+        description:
+          "Anotaci se nepodařilo odeslat. Změny jsou uložené lokálně — zkuste to znovu.",
+        variant: "destructive",
+      });
+      return;
     }
     clearDraft(annotator, article.id);
     await annotatorAnnotations.refetch();
@@ -235,16 +286,19 @@ export default function ArticleAnnotate() {
     spans,
     types,
     annotatorAnnotations,
+    toast,
   ]);
 
   const handleJumpToArticle = useCallback(
     (id: string) => {
       if (!annotator || id === articleId) return;
-      navigate(
-        `/article/${id}/annotate?annotator=${encodeURIComponent(annotator)}`,
+      guardedNavigate(() =>
+        navigate(
+          `/article/${id}/annotate?annotator=${encodeURIComponent(annotator)}`,
+        ),
       );
     },
-    [annotator, articleId, navigate],
+    [annotator, articleId, navigate, guardedNavigate],
   );
 
   const handleResetAll = useCallback(async () => {
@@ -339,7 +393,7 @@ export default function ArticleAnnotate() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate("/")}
+          onClick={() => guardedNavigate(() => navigate("/"))}
           className="gap-1"
         >
           <ArrowLeft className="h-4 w-4" />

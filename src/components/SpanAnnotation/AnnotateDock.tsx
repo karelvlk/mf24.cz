@@ -24,7 +24,9 @@ export default function AnnotateDock({
   onJump,
   onResetAll,
 }: AnnotateDockProps) {
-  const annotatedCount = byArticle.size;
+  const submittedCount = [...byArticle.values()].filter(
+    (a) => a.status === "submitted",
+  ).length;
   const total = articles.length;
 
   return (
@@ -33,14 +35,15 @@ export default function AnnotateDock({
         {annotator}
       </span>
       <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-700">
-        {annotatedCount} / {total}
+        {submittedCount} / {total}
       </span>
 
       <div className="flex flex-1 items-center gap-1 overflow-x-auto">
         {articles.map((a, i) => {
           const ann = byArticle.get(a.id);
           const isCurrent = a.id === currentArticleId;
-          const isAnnotated = Boolean(ann);
+          const isSubmitted = ann?.status === "submitted";
+          const isDraft = Boolean(ann) && !isSubmitted;
           return (
             <Tooltip key={a.id} delayDuration={150}>
               <TooltipTrigger asChild>
@@ -49,15 +52,17 @@ export default function AnnotateDock({
                   onClick={() => onJump(a.id)}
                   className={
                     "relative h-6 w-6 shrink-0 rounded transition-transform hover:scale-110 " +
-                    (isAnnotated
+                    (isSubmitted
                       ? "bg-primary"
-                      : "border border-zinc-300 bg-white") +
+                      : isDraft
+                        ? "bg-amber-400"
+                        : "border border-zinc-300 bg-white") +
                     (isCurrent ? " ring-2 ring-zinc-900 ring-offset-1" : "")
                   }
                   aria-label={a.title}
                 >
                   <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-zinc-600">
-                    {isAnnotated ? "" : i + 1}
+                    {isSubmitted ? "" : i + 1}
                   </span>
                 </button>
               </TooltipTrigger>
@@ -67,6 +72,7 @@ export default function AnnotateDock({
                   {ann ? (
                     <>
                       <span className="text-zinc-300">
+                        {isSubmitted ? "Odesláno" : "Rozpracováno"} ·{" "}
                         {ann.spans.length} anotac
                         {ann.spans.length === 1 ? "e" : "í"}
                       </span>

@@ -13,7 +13,10 @@ export type AnnotationPayload = {
     types?: unknown[];
   };
   timestamp?: string;
+  status?: AnnotationStatus;
 };
+
+export type AnnotationStatus = "draft" | "submitted";
 
 export type AnnotationRow = {
   id: number;
@@ -25,6 +28,7 @@ export type AnnotationRow = {
   spans_json: string;
   types_json: string;
   submitted_at: string;
+  status: string;
 };
 
 let dbInstance: Database.Database | null = null;
@@ -94,6 +98,30 @@ function getDb(rootDir: string): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_articles_theme ON articles(theme);
     CREATE INDEX IF NOT EXISTS idx_articles_dezinfo ON articles(dezinfo);
   `);
+
+  // annotations migration: add status, collapse duplicates, enforce one row per pair
+  let statusJustAdded = false;
+  try {
+    db.exec(
+      `ALTER TABLE annotations ADD COLUMN status TEXT NOT NULL DEFAULT 'draft'`,
+    );
+    statusJustAdded = true;
+  } catch {
+    // column already exists
+  }
+  if (statusJustAdded) {
+    // every pre-existing row was a real submission
+    db.exec(`UPDATE annotations SET status = 'submitted'`);
+  }
+  db.exec(`
+    DELETE FROM annotations
+    WHERE id NOT IN (
+      SELECT MAX(id) FROM annotations GROUP BY annotator_id, article_id
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_pair_unique
+      ON annotations(annotator_id, article_id);
+  `);
+
   dbInstance = db;
   maybeMigrateJson(rootDir);
   try {
@@ -401,16 +429,26 @@ export function getArticles(rootDir: string): ArticleApi[] {
   });
 }
 
-export function insertAnnotation(rootDir: string, payload: AnnotationPayload) {
+export function upsertAnnotation(rootDir: string, payload: AnnotationPayload) {
   const db = getDb(rootDir);
   if (!payload.annotatorId || !payload.articleId) {
     throw new Error("Missing annotatorId or articleId");
   }
   const answers = payload.answers ?? {};
+  const status: AnnotationStatus =
+    payload.status === "submitted" ? "submitted" : "draft";
   const stmt = db.prepare(`
     INSERT INTO annotations
-      (annotator_id, article_id, credibility, manipulativeness, heard, spans_json, types_json, submitted_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      (annotator_id, article_id, credibility, manipulativeness, heard, spans_json, types_json, submitted_at, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(annotator_id, article_id) DO UPDATE SET
+      credibility = excluded.credibility,
+      manipulativeness = excluded.manipulativeness,
+      heard = excluded.heard,
+      spans_json = excluded.spans_json,
+      types_json = excluded.types_json,
+      submitted_at = excluded.submitted_at,
+      status = excluded.status
   `);
   const info = stmt.run(
     payload.annotatorId,
@@ -421,9 +459,13 @@ export function insertAnnotation(rootDir: string, payload: AnnotationPayload) {
     JSON.stringify(answers.spans ?? []),
     JSON.stringify(answers.types ?? []),
     payload.timestamp ?? new Date().toISOString(),
+    status,
   );
   return info.lastInsertRowid;
 }
+
+// Back-compat alias; all writes upsert one row per (annotator, article).
+export const insertAnnotation = upsertAnnotation;
 
 export function getLatestAnnotations(rootDir: string): AnnotationPayload[] {
   const db = getDb(rootDir);
@@ -512,6 +554,7 @@ function rowToPayload(r: AnnotationRow): AnnotationPayload {
       types,
     },
     timestamp: r.submitted_at,
+    status: r.status === "submitted" ? "submitted" : "draft",
   };
 }
 

@@ -7,6 +7,7 @@ export type AnnotatorAnnotation = {
   manipulativeness?: number;
   spans: SpanAnnotation[];
   timestamp: string;
+  status: "draft" | "submitted";
 };
 
 type ServerPayload = {
@@ -18,6 +19,7 @@ type ServerPayload = {
     spans?: SpanAnnotation[];
   };
   timestamp: string;
+  status?: "draft" | "submitted";
 };
 
 export function useAnnotatorAnnotations(annotator: string) {
@@ -50,6 +52,7 @@ export function useAnnotatorAnnotations(annotator: string) {
           manipulativeness: item.answers?.manipulativeness,
           spans: item.answers?.spans ?? [],
           timestamp: item.timestamp,
+          status: item.status === "submitted" ? "submitted" : "draft",
         });
       }
       setByArticle(map);

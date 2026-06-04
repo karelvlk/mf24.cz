@@ -19,8 +19,21 @@ interface AnnotateToolbarProps {
   onAddType: (next: AnnotationType) => void;
   onUpdateType: (id: string, patch: Partial<AnnotationType>) => void;
   onRemoveType: (id: string) => void;
-  saveStatus: "idle" | "saving" | "saved";
+  saveStatus: "saved" | "saving" | "unsaved" | "error";
 }
+
+const STATUS_UI: Record<
+  AnnotateToolbarProps["saveStatus"],
+  { label: string; className: string }
+> = {
+  saved: { label: "Uloženo", className: "bg-emerald-100 text-emerald-700" },
+  saving: { label: "Ukládám…", className: "bg-zinc-200/70 text-zinc-700" },
+  unsaved: { label: "Neuloženo", className: "bg-amber-100 text-amber-800" },
+  error: {
+    label: "Chyba ukládání — opakuji",
+    className: "bg-red-100 text-red-700",
+  },
+};
 
 export default function AnnotateToolbar({
   types,
@@ -37,12 +50,7 @@ export default function AnnotateToolbar({
   const [addOpen, setAddOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const statusLabel =
-    saveStatus === "saving"
-      ? "Ukládám…"
-      : saveStatus === "saved"
-        ? "Uloženo"
-        : "";
+  const statusUi = STATUS_UI[saveStatus];
 
   return (
     <div className="flex flex-col border-b border-zinc-200 bg-zinc-50">
@@ -172,11 +180,17 @@ export default function AnnotateToolbar({
             Dvojklik = začátek, pohyb = rozšíř, klik = potvrď. ESC zruší.
           </span>
         )}
-        {statusLabel && (
-          <span className="rounded bg-zinc-200/70 px-1.5 py-0.5 text-zinc-700">
-            {statusLabel}
-          </span>
-        )}
+        <span
+          className={
+            "inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-medium " +
+            statusUi.className
+          }
+        >
+          {saveStatus === "saving" && (
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
+          )}
+          {statusUi.label}
+        </span>
       </div>
     </div>
 
