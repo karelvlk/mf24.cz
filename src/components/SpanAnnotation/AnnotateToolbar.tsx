@@ -20,6 +20,8 @@ interface AnnotateToolbarProps {
   onUpdateType: (id: string, patch: Partial<AnnotationType>) => void;
   onRemoveType: (id: string) => void;
   saveStatus: "saved" | "saving" | "unsaved" | "error";
+  granularity: "word" | "char";
+  onGranularityChange: (g: "word" | "char") => void;
 }
 
 const STATUS_UI: Record<
@@ -45,6 +47,8 @@ export default function AnnotateToolbar({
   onUpdateType,
   onRemoveType,
   saveStatus,
+  granularity,
+  onGranularityChange,
 }: AnnotateToolbarProps) {
   const activeType = types.find((t) => t.id === activeTypeId) ?? null;
   const [addOpen, setAddOpen] = useState(false);
@@ -175,9 +179,29 @@ export default function AnnotateToolbar({
       </div>
 
       <div className="ml-auto flex items-center gap-3 text-[11px] text-zinc-500">
+        <div className="inline-flex shrink-0 overflow-hidden rounded-sm border border-zinc-300">
+          {(["word", "char"] as const).map((g) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() => onGranularityChange(g)}
+              className={
+                "px-2 py-0.5 text-[11px] font-medium transition-colors " +
+                (granularity === g
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-white text-zinc-600 hover:bg-zinc-100")
+              }
+              aria-pressed={granularity === g}
+            >
+              {g === "word" ? "Slova" : "Znaky"}
+            </button>
+          ))}
+        </div>
         {activeTypeId && (
           <span className="hidden md:inline">
-            Dvojklik = začátek, pohyb = rozšíř, klik = potvrď. ESC zruší.
+            {granularity === "char"
+              ? "Označte text myší = vytvoří span. ESC zruší."
+              : "Dvojklik = začátek, pohyb = rozšíř, klik = potvrď. ESC zruší."}
           </span>
         )}
         <span

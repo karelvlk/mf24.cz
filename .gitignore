@@ -26,4 +26,5 @@ screenshots/
 
 data-records/*
 mf24-app.tar
-screenshots_*/**/*
+screenshots_*/
+backups/

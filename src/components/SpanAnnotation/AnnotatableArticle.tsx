@@ -9,7 +9,14 @@ import type {
   SpanAnnotation,
   Token,
 } from "@/lib/spanAnnotation";
-import { assignSpanLayers, generateId, shadeColor, shadeColorByOption } from "@/lib/spanAnnotation";
+import {
+  assignSpanLayers,
+  buildTokenCharRanges,
+  charRangeToWordRange,
+  generateId,
+  shadeColor,
+  shadeColorByOption,
+} from "@/lib/spanAnnotation";
 import {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
@@ -38,6 +45,7 @@ interface AnnotatableArticleProps {
   textAlign?: "justify" | "left";
   pulseSpanId?: string | null;
   pulseKey?: number;
+  granularity?: "word" | "char";
 }
 
 const TRACK_HEIGHT = 4;
@@ -74,6 +82,21 @@ type Editing = {
   endpoint: "start" | "end";
 };
 
+// Rendered underline piece for a character span (one per visual line rect).
+type CharSegment = {
+  spanId: string;
+  typeId: string;
+  color: string;
+  layer: number;
+  left: number;
+  right: number;
+  y: number;
+  value?: number;
+  optionLabel?: string;
+  isFirst: boolean;
+  isDraft: false;
+};
+
 function hexToRgba(hex: string, alpha: number): string {
   const m = hex.replace(/^#/, "");
   if (m.length !== 3 && m.length !== 6) return hex;
@@ -101,7 +124,9 @@ export default function AnnotatableArticle({
   textAlign,
   pulseSpanId,
   pulseKey,
+  granularity = "word",
 }: AnnotatableArticleProps) {
+  const charMode = granularity === "char";
   const containerRef = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLParagraphElement | null>(null);
   const tokenRefs = useRef<Map<number, HTMLSpanElement>>(new Map());
@@ -119,6 +144,9 @@ export default function AnnotatableArticle({
   } | null>(null);
   const [pulseActiveId, setPulseActiveId] = useState<string | null>(null);
   const [hoveredSpanId, setHoveredSpanId] = useState<string | null>(null);
+  const [charSegmentsBySpan, setCharSegmentsBySpan] = useState<
+    Map<string, CharSegment[]>
+  >(() => new Map());
 
   const typeMap = useMemo(() => {
     const m = new Map<string, AnnotationType>();
@@ -143,6 +171,11 @@ export default function AnnotatableArticle({
   const pageTokens = useMemo(
     () => tokens.slice(pageRange.start, pageRange.end),
     [tokens, pageRange.start, pageRange.end],
+  );
+
+  const tokenCharRanges = useMemo(
+    () => buildTokenCharRanges(tokens, pageRange),
+    [tokens, pageRange],
   );
 
   const measure = useCallback(() => {
@@ -287,9 +320,10 @@ export default function AnnotatableArticle({
   const segmentsBySpan: Map<string, Segment[]> = useMemo(() => {
     const map = new Map<string, Segment[]>();
     if (lines.length === 0) return map;
+    const wordSpans = spans.filter((s) => s.granularity !== "char");
     const renderList: SpanAnnotation[] = draftSpan
-      ? [...spans, draftSpan]
-      : spans;
+      ? [...wordSpans, draftSpan]
+      : wordSpans;
 
     for (const span of renderList) {
       const isDraft = span.id === DRAFT_ID;
@@ -344,11 +378,117 @@ export default function AnnotatableArticle({
     return map;
   }, [lines, spans, draftSpan, typeMap, layerMap]);
 
+  // Character spans are positioned with DOM Range rects (partial-token precision)
+  // rather than whole-token geometry. Recompute whenever layout or spans change.
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const charSpans = spans.filter(
+      (s) =>
+        s.granularity === "char" &&
+        s.startChar !== undefined &&
+        s.endChar !== undefined,
+    );
+    if (!container || charSpans.length === 0) {
+      setCharSegmentsBySpan((prev) => (prev.size === 0 ? prev : new Map()));
+      return;
+    }
+    const containerRect = container.getBoundingClientRect();
+
+    const resolve = (offset: number, edge: "start" | "end") => {
+      for (const [idx, r] of tokenCharRanges) {
+        const inside =
+          edge === "start"
+            ? offset >= r.textStart && offset < r.textEnd
+            : offset > r.textStart && offset <= r.textEnd;
+        if (inside) {
+          const node = tokenRefs.current.get(idx)?.firstChild ?? null;
+          if (node) return { node, off: offset - r.textStart };
+        }
+      }
+      // Boundary / whitespace gap: snap to the nearest token edge.
+      if (edge === "start") {
+        for (const [idx, r] of tokenCharRanges) {
+          if (offset <= r.textStart) {
+            const node = tokenRefs.current.get(idx)?.firstChild ?? null;
+            if (node) return { node, off: 0 };
+          }
+        }
+      } else {
+        let last: { node: ChildNode; off: number } | null = null;
+        for (const [idx, r] of tokenCharRanges) {
+          if (r.textEnd <= offset) {
+            const node = tokenRefs.current.get(idx)?.firstChild ?? null;
+            if (node) last = { node, off: r.textEnd - r.textStart };
+          }
+        }
+        return last;
+      }
+      return null;
+    };
+
+    const map = new Map<string, CharSegment[]>();
+    for (const span of charSpans) {
+      const type = typeMap.get(span.typeId);
+      if (!type) continue;
+      let color = type.color;
+      if (type.options && type.options.length > 0) {
+        color = shadeColorByOption(type.color, span.optionId, type.options);
+      } else if (type.range) {
+        color = shadeColor(type.color, span.value, type.range);
+      }
+      const layer = layerMap.get(span.id) ?? 0;
+      const optionLabel =
+        type.options && span.optionId
+          ? type.options.find((o) => o.id === span.optionId)?.label
+          : undefined;
+
+      const start = resolve(span.startChar as number, "start");
+      const end = resolve(span.endChar as number, "end");
+      if (!start || !end) continue;
+      let rects: DOMRectList;
+      try {
+        const range = document.createRange();
+        range.setStart(start.node, start.off);
+        range.setEnd(end.node, end.off);
+        rects = range.getClientRects();
+      } catch {
+        continue;
+      }
+      const arr: CharSegment[] = [];
+      for (let i = 0; i < rects.length; i += 1) {
+        const rect = rects[i];
+        if (rect.width === 0) continue;
+        const y =
+          rect.bottom -
+          containerRect.top +
+          BASELINE_OFFSET +
+          layer * (TRACK_HEIGHT + TRACK_GAP) +
+          TRACK_HEIGHT / 2;
+        arr.push({
+          spanId: span.id,
+          typeId: span.typeId,
+          color,
+          layer,
+          left: rect.left - containerRect.left,
+          right: rect.right - containerRect.left,
+          y,
+          value: span.value,
+          optionLabel,
+          isFirst: arr.length === 0,
+          isDraft: false,
+        });
+      }
+      if (arr.length > 0) map.set(span.id, arr);
+    }
+    setCharSegmentsBySpan(map);
+  }, [spans, lines, containerSize, typeMap, layerMap, tokenCharRanges]);
+
   const allSegments = useMemo(() => {
     const list: Segment[] = [];
     segmentsBySpan.forEach((arr) => list.push(...arr));
+    charSegmentsBySpan.forEach((arr) => list.push(...arr));
     return list;
-  }, [segmentsBySpan]);
+  }, [segmentsBySpan, charSegmentsBySpan]);
 
   const highlight = useMemo(() => {
     if (hoverTokenIdx === null) return null;
@@ -392,6 +532,59 @@ export default function AnnotatableArticle({
       color: hexToRgba(color, 0.25),
     };
   }, [hoverTokenIdx, draft, editing, spans, typeMap, activeOptionId]);
+
+  const handleCharSelectionUp = useCallback(() => {
+    if (!charMode || !activeType) return;
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    const container = containerRef.current;
+    if (!container || !container.contains(range.commonAncestorContainer)) return;
+
+    const mapNodeToChar = (node: Node, offset: number): number | null => {
+      const el =
+        node.nodeType === Node.TEXT_NODE
+          ? node.parentElement
+          : (node as Element);
+      const tokenEl = el?.closest("[data-token-idx]") as HTMLElement | null;
+      if (!tokenEl) return null;
+      const idx = Number(tokenEl.dataset.tokenIdx);
+      const r = tokenCharRanges.get(idx);
+      if (!r) return null;
+      const clamped = Math.max(0, Math.min(offset, r.textEnd - r.textStart));
+      return r.textStart + clamped;
+    };
+
+    const a = mapNodeToChar(range.startContainer, range.startOffset);
+    const b = mapNodeToChar(range.endContainer, range.endOffset);
+    if (a === null || b === null) return;
+    const startChar = Math.min(a, b);
+    const endChar = Math.max(a, b);
+    if (endChar - startChar < 1) return;
+    const wr = charRangeToWordRange(startChar, endChar, tokenCharRanges);
+    if (!wr) return;
+
+    const targetOptionId =
+      activeType.options && activeType.options.length > 0
+        ? activeOptionId &&
+          activeType.options.some((o) => o.id === activeOptionId)
+          ? activeOptionId
+          : activeType.options[0].id
+        : undefined;
+
+    onAddSpan({
+      id: generateId(),
+      typeId: activeType.id,
+      granularity: "char",
+      startChar,
+      endChar,
+      startWord: wr.startWord,
+      endWord: wr.endWord,
+      value: activeType.range ? activeType.range.min : undefined,
+      optionId: targetOptionId,
+    });
+    sel.removeAllRanges();
+  }, [charMode, activeType, activeOptionId, tokenCharRanges, onAddSpan]);
 
   const commitDraft = useCallback(
     (d: Draft) => {
@@ -555,7 +748,7 @@ export default function AnnotatableArticle({
 
   const handleDoubleClick = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
-      if (!activeType) return;
+      if (!activeType || charMode) return;
       const target = event.target as Element;
       if (target.closest("[data-handle-span]")) return;
       if (target.closest("[data-stroke-span]")) return;
@@ -570,7 +763,7 @@ export default function AnnotatableArticle({
       setHoverTokenIdx(idx);
       setPopoverAt(null);
     },
-    [activeType, findTokenByPoint],
+    [activeType, charMode, findTokenByPoint],
   );
 
   const handlePointerMove = useCallback(
@@ -690,23 +883,32 @@ export default function AnnotatableArticle({
       .filter((s): s is SpanAnnotation => Boolean(s));
   }, [popoverAt, spans]);
 
-  const cursor = activeType
-    ? "crosshair"
-    : editing
-      ? "ew-resize"
-      : "default";
+  const cursor = charMode
+    ? activeType
+      ? "text"
+      : "default"
+    : activeType
+      ? "crosshair"
+      : editing
+        ? "ew-resize"
+        : "default";
 
   return (
     <div
       ref={containerRef}
-      className="relative select-none"
-      style={{ cursor, touchAction: "none" }}
+      className={charMode ? "relative" : "relative select-none"}
+      style={{
+        cursor,
+        touchAction: "none",
+        userSelect: charMode ? "text" : undefined,
+      }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       onPointerLeave={handlePointerLeave}
       onDoubleClick={handleDoubleClick}
+      onMouseUp={charMode ? handleCharSelectionUp : undefined}
     >
       <p
         ref={textRef}

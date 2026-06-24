@@ -317,15 +317,6 @@ async function startExperiment(page) {
     throw new Error("Could not find the Experiment start button on the homepage.");
   }
 
-  await page.waitForSelector("#participant-experiment", { timeout: 10_000 });
-  await page.evaluate(() => {
-    const input = document.querySelector("#participant-experiment");
-    if (input instanceof HTMLInputElement) {
-      input.value = "";
-    }
-  });
-  await page.type("#participant-experiment", "1");
-
   // Select the first ordering option from the dropdown using keyboard
   await page.waitForSelector("#ordering-select", { timeout: 10_000 });
   await page.click("#ordering-select");

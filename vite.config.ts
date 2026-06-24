@@ -9,6 +9,7 @@ import {
   getAllAnnotations,
   getAnnotationsByAnnotator,
   getArticles,
+  getLabelConfig,
   getLatestAnnotations,
   initDb,
   insertAnnotation,
@@ -20,6 +21,28 @@ const __dirname = path.dirname(__filename);
 const API_BASE = "/api/save-annotation";
 
 const ARTICLES_API = "/api/articles";
+
+const LABELS_API = "/api/labels";
+
+const labelsMiddleware = (req: any, res: any, next: any) => {
+  const rawUrl: string = req.url ?? "";
+  if (rawUrl.indexOf(LABELS_API) === -1) return next();
+  if (req.method !== "GET") {
+    res.statusCode = 405;
+    res.end(JSON.stringify({ error: "Method not allowed" }));
+    return;
+  }
+  try {
+    const labels = getLabelConfig(__dirname);
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify(labels));
+  } catch (error) {
+    console.error("[Vite Middleware] Error reading labels:", error);
+    res.statusCode = 500;
+    res.end(JSON.stringify({ error: "Internal Server Error" }));
+  }
+};
 
 const articlesMiddleware = (req: any, res: any, next: any) => {
   const rawUrl: string = req.url ?? "";
@@ -148,11 +171,13 @@ const saveAnnotationsPlugin = () => ({
   name: "save-annotations",
   configureServer(server: any) {
     initDb(__dirname);
+    server.middlewares.use(labelsMiddleware);
     server.middlewares.use(articlesMiddleware);
     server.middlewares.use(saveAnnotationsMiddleware);
   },
   configurePreviewServer(server: any) {
     initDb(__dirname);
+    server.middlewares.use(labelsMiddleware);
     server.middlewares.use(articlesMiddleware);
     server.middlewares.use(saveAnnotationsMiddleware);
   },

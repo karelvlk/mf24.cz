@@ -1,10 +1,5 @@
-export type AnnotationCategory =
-  | "expr"
-  | "appeal"
-  | "question"
-  | "untruth"
-  | "legit"
-  | "custom";
+// Category ids are config-driven. "custom" is reserved for user-added types.
+export type AnnotationCategory = string;
 
 export type AnnotationOption = {
   id: string;
@@ -30,11 +25,20 @@ export type AnnotationType = {
   };
 };
 
+export type SpanGranularity = "word" | "char";
+
 export type SpanAnnotation = {
   id: string;
   typeId: string;
+  // Word indices are always populated. For char spans they are derived from the
+  // containing tokens so existing word-based stats/layering keep working.
   startWord: number;
   endWord: number;
+  // Present only when granularity === "char": character offsets into the page
+  // text (tokens joined by their leadingWs), inclusive-exclusive [startChar,endChar).
+  granularity?: SpanGranularity;
+  startChar?: number;
+  endChar?: number;
   value?: number;
   optionId?: string;
 };
@@ -87,6 +91,45 @@ export function tokenizePages(pages: string[]): {
   }
 
   return { tokens, pageRanges };
+}
+
+export type TokenCharRange = { textStart: number; textEnd: number };
+
+// Character offset (into the page text = tokens joined by their leadingWs) of
+// each token's text run. Used to map between native selections and char spans.
+export function buildTokenCharRanges(
+  tokens: Token[],
+  pageRange: PageRange,
+): Map<number, TokenCharRange> {
+  const map = new Map<number, TokenCharRange>();
+  let cursor = 0;
+  for (let i = pageRange.start; i < pageRange.end; i += 1) {
+    const t = tokens[i];
+    if (!t) continue;
+    cursor += t.leadingWs.length;
+    const textStart = cursor;
+    cursor += t.text.length;
+    map.set(i, { textStart, textEnd: cursor });
+  }
+  return map;
+}
+
+// Derive the inclusive word range covered by a [startChar, endChar) char span.
+export function charRangeToWordRange(
+  startChar: number,
+  endChar: number,
+  ranges: Map<number, TokenCharRange>,
+): { startWord: number; endWord: number } | null {
+  let startWord = -1;
+  let endWord = -1;
+  for (const [idx, r] of ranges) {
+    if (r.textEnd > startChar && r.textStart < endChar) {
+      if (startWord === -1 || idx < startWord) startWord = idx;
+      if (idx > endWord) endWord = idx;
+    }
+  }
+  if (startWord === -1) return null;
+  return { startWord, endWord };
 }
 
 export function generateId(): string {

@@ -34,6 +34,37 @@ export type AnnotationRow = {
 let dbInstance: Database.Database | null = null;
 let dbPath: string | null = null;
 
+export type DatasetConfig = { id: string; file: string; enabled?: boolean };
+type AnnotatorConfig = { datasets: DatasetConfig[]; labels: unknown };
+
+const DEFAULT_CONFIG: AnnotatorConfig = {
+  datasets: [{ id: "A", file: "A.csv", enabled: true }],
+  labels: { categories: [] },
+};
+
+function readConfig(rootDir: string): AnnotatorConfig {
+  const configPath = path.resolve(rootDir, "data", "annotator.config.json");
+  if (!fs.existsSync(configPath)) {
+    console.warn("[annotationsDb] annotator.config.json not found, using defaults");
+    return DEFAULT_CONFIG;
+  }
+  try {
+    const parsed = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    const datasets = Array.isArray(parsed?.datasets)
+      ? (parsed.datasets as DatasetConfig[]).filter((d) => d?.id && d?.file)
+      : DEFAULT_CONFIG.datasets;
+    return { datasets, labels: parsed?.labels ?? DEFAULT_CONFIG.labels };
+  } catch (e) {
+    console.error("[annotationsDb] Failed to parse annotator.config.json:", e);
+    return DEFAULT_CONFIG;
+  }
+}
+
+// Raw labels object served to the client (validated there with Zod).
+export function getLabelConfig(rootDir: string): unknown {
+  return readConfig(rootDir).labels;
+}
+
 function getDb(rootDir: string): Database.Database {
   if (dbInstance) return dbInstance;
   const dataDir = path.resolve(rootDir, "data-records");
@@ -224,9 +255,26 @@ function parseBoolish(v: string | undefined): number | null {
 export function syncArticlesFromCsv(rootDir: string): number {
   const db = dbInstance;
   if (!db) return 0;
-  const csvPath = path.resolve(rootDir, "data", "datasets", "A.csv");
+  const datasets = readConfig(rootDir).datasets.filter((d) => d.enabled !== false);
+  if (datasets.length === 0) {
+    console.warn("[annotationsDb] No enabled datasets in config, skipping article sync");
+    return 0;
+  }
+  let total = 0;
+  for (const ds of datasets) {
+    total += syncDataset(db, rootDir, ds);
+  }
+  return total;
+}
+
+function syncDataset(
+  db: Database.Database,
+  rootDir: string,
+  ds: DatasetConfig,
+): number {
+  const csvPath = path.resolve(rootDir, "data", "datasets", ds.file);
   if (!fs.existsSync(csvPath)) {
-    console.warn("[annotationsDb] A.csv not found, skipping article sync");
+    console.warn(`[annotationsDb] ${ds.file} not found, skipping dataset ${ds.id}`);
     return 0;
   }
   const text = fs.readFileSync(csvPath, "utf8");
@@ -252,7 +300,7 @@ export function syncArticlesFromCsv(rootDir: string): number {
     INSERT INTO articles
       (article_id, dataset, pseudotitle, title, source, content, question, answer,
        theme, manip, dezinfo, csv_row_index, category, perex, author, published, updated_at)
-    VALUES (?, 'A', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(article_id) DO UPDATE SET
       pseudotitle = excluded.pseudotitle,
       title = excluded.title,
@@ -276,11 +324,15 @@ export function syncArticlesFromCsv(rootDir: string): number {
     for (let r = headerRowIdx + 1; r < table.length; r += 1) {
       const row = table[r];
       if (!row || row.every((v) => !v?.trim())) continue;
-      const articleId = (row[idxIndex] ?? "").trim();
-      if (!articleId) continue;
+      const rawId = (row[idxIndex] ?? "").trim();
+      if (!rawId) continue;
+      // Dataset "A" keeps bare ids for back-compat with existing annotations;
+      // other datasets are namespaced to avoid article_id collisions.
+      const articleId = ds.id === "A" ? rawId : `${ds.id}:${rawId}`;
       const theme = row[idxTheme];
       upsert.run(
         articleId,
+        ds.id,
         row[idxPseudo] ?? null,
         row[idxTitle] ?? null,
         row[idxSource] ?? null,
