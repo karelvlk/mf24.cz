@@ -1,0 +1,83 @@
+{
+  "datasets": [
+    { "id": "A", "file": "A.csv", "enabled": true },
+    { "id": "B", "file": "B.csv", "enabled": false }
+  ],
+  "labels": {
+    "categories": [
+      {
+        "id": "expr",
+        "name": "Expresivita",
+        "color": "#f59e0b",
+        "hint": "Spans naznačující/dokládající manipulativitu skrze expresivitu",
+        "locked": true,
+        "options": [
+          { "id": "Em", "label": "Em", "hint": "Expresivní – vyvolává emoce" },
+          { "id": "EmPos", "label": "EmPos", "hint": "Pozitivní emoce" },
+          { "id": "EmNeg", "label": "EmNeg", "hint": "Negativní emoce" },
+          { "id": "EmNegFear", "label": "EmNegFear", "hint": "Strach" },
+          { "id": "EmNegRid", "label": "EmNegRid", "hint": "Posměch, sarkasmus, ironie, dehonestace" }
+        ]
+      },
+      {
+        "id": "appeal",
+        "name": "Apely",
+        "color": "#f43f5e",
+        "hint": "Apely / pobízení k akci",
+        "locked": true,
+        "options": [
+          { "id": "AppEmo", "label": "AppEmo", "hint": "Emocionální apel" },
+          { "id": "AppUrg", "label": "AppUrg", "hint": "Apel na naléhavost (urgency)" },
+          { "id": "AppAuth", "label": "AppAuth", "hint": "Apel na autoritu" },
+          { "id": "AppUsvsthem", "label": "AppUsvsthem", "hint": "Us vs. Them – vytváření falešného rozdělení mezi lidmi na základě problematického znaku (etnicita, názorový proud apod.)" },
+          { "id": "AppBa", "label": "AppBa", "hint": "Bandwagon – přidejte se k většině / k vítězi (oproti AppUsvsthem nastává až konsekventně)" }
+        ]
+      },
+      {
+        "id": "question",
+        "name": "Manipulativní otázky",
+        "color": "#8b5cf6",
+        "hint": "Manipulativní otázky (často obsahují odpověď)",
+        "locked": true,
+        "options": [
+          { "id": "QuestLead", "label": "QuestLead", "hint": "Návodná otázka (nucení k potvrzení, očekávání souhlasu)" },
+          { "id": "QuestDoublebarr", "label": "QuestDoublebarr", "hint": "Dvojí otázka – redukce na 2 možnosti, umělé dilema" },
+          { "id": "QuestHypoth", "label": "QuestHypoth", "hint": "Hypotetická otázka – irelevantní scénáře" },
+          { "id": "QuestFalsepremise", "label": "QuestFalsepremise", "hint": "Falešný předpoklad v otázce" },
+          { "id": "QuestLoaded", "label": "QuestLoaded", "hint": "Loaded – v podtextu předsudek vůči někomu" }
+        ]
+      },
+      {
+        "id": "untruth",
+        "name": "Nepravdivost",
+        "color": "#10b981",
+        "hint": "Příznaky naznačující/dokládající nepravdivost",
+        "locked": true,
+        "options": [
+          { "id": "FalseFab", "label": "FalseFab", "hint": "Výmysl, odkaz na neexistující entitu" },
+          { "id": "FalseWrong", "label": "FalseWrong", "hint": "Nesprávný údaj" },
+          { "id": "FalseUnver", "label": "FalseUnver", "hint": "Nedoložitelný údaj" },
+          { "id": "FalseIncons", "label": "FalseIncons", "hint": "Inkonzistence tvrzení v rámci textu samotného" },
+          { "id": "FalseExagg", "label": "FalseExagg", "hint": "Přehánění a zkreslování (superlativy, absolutní tvrzení)" },
+          { "id": "FalseContext", "label": "FalseContext", "hint": "Chybějící kontext (údaj pravdivý v jiném kontextu, který zde chybí)" },
+          { "id": "FalseRepe", "label": "FalseRepe", "hint": "Opakování a propagandistické fráze" },
+          { "id": "FalseSrcDubious", "label": "FalseSrcDubious", "hint": "Pochybný zdroj informace (neznámý nebo nedůvěryhodný)" },
+          { "id": "FalseSrcUnspec", "label": "FalseSrcUnspec", "hint": "Nejasné autorství/reference – „my“ místo konkrétního subjektu" }
+        ]
+      },
+      {
+        "id": "legit",
+        "name": "Legitimizace",
+        "color": "#0ea5e9",
+        "hint": "Legitimizace textu (způsoby)",
+        "locked": true,
+        "options": [
+          { "id": "LegitbyAuthority", "label": "LegitbyAuthority", "hint": "Autorizace – odvolání se na autoritu (bez pobídky k akci)" },
+          { "id": "LegitbyMoral", "label": "LegitbyMoral", "hint": "Morální hodnocení" },
+          { "id": "LegitbyRational", "label": "LegitbyRational", "hint": "Racionalizace – (pseudo)vědecká fakta, tabulky, odborné texty" },
+          { "id": "LegitbyMythos", "label": "LegitbyMythos", "hint": "Mythopoesis – legitimizace příběhem, dramatizace" }
+        ]
+      }
+    ]
+  }
+}

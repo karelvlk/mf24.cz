@@ -26,6 +26,7 @@ import {
   SpanAnnotation,
   tokenizePages,
 } from "@/lib/spanAnnotation";
+import { migrateSpans } from "@/lib/labelAliases";
 import { ArrowLeft, User } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -98,6 +99,7 @@ export default function ArticleAnnotate() {
   const [answers, setAnswers] = useState<AnnotateAnswers>({});
   const [activeTypeId, setActiveTypeId] = useState<string | null>(null);
   const [activeOptionId, setActiveOptionId] = useState<string | null>(null);
+  const [granularity, setGranularity] = useState<"word" | "char">("word");
   const [pulseSpanId, setPulseSpanId] = useState<string | null>(null);
   const [pulseKey, setPulseKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -133,12 +135,12 @@ export default function ArticleAnnotate() {
     const hasDraft =
       draft && (draft.spans.length > 0 || Object.keys(draft.answers).length > 0);
     if (hasDraft) {
-      setSpans(draft.spans);
+      setSpans(migrateSpans(draft.spans));
       setAnswers(draft.answers);
     } else {
       const serverAnn = annotatorAnnotations.byArticle.get(articleId);
       if (serverAnn) {
-        setSpans(serverAnn.spans ?? []);
+        setSpans(migrateSpans(serverAnn.spans ?? []));
         setAnswers({
           credibility: serverAnn.credibility,
           manipulativeness: serverAnn.manipulativeness,
@@ -421,6 +423,8 @@ export default function ArticleAnnotate() {
         onUpdateType={updateType}
         onRemoveType={removeType}
         saveStatus={saveStatus}
+        granularity={granularity}
+        onGranularityChange={setGranularity}
       />
 
       <div className="flex min-h-0 flex-1">
@@ -446,6 +450,7 @@ export default function ArticleAnnotate() {
               lineHeight={DEFAULT_LINE_HEIGHT}
               pulseSpanId={pulseSpanId}
               pulseKey={pulseKey}
+              granularity={granularity}
             />
 
           </div>
